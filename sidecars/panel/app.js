@@ -301,14 +301,14 @@
     panX = panY = 0;
 
     $('#query').value = currentStore().query;
-    $('#command-heading').textContent = mode === 'research' ? 'Deep research' : 'Causal simulation';
-    $('#run-label').textContent = mode === 'research' ? 'Research' : 'Simulate';
-    $('#graph-name').textContent = mode === 'research' ? 'Evidence graph' : 'Causal graph';
+    $('#command-heading').textContent = mode === 'research' ? 'D Research' : 'Aleph';
+    $('#run-label').textContent = mode === 'research' ? 'D Research' : 'Aleph';
+    $('#graph-name').textContent = mode === 'research' ? 'D Research Graph' : 'Aleph Graph';
 
     $$('.mode').forEach((b) => b.classList.toggle('selected', b.dataset.mode === mode));
 
     updateUI();
-    showToast(mode === 'research' ? 'Đã chuyển sang Deep Research' : 'Đã chuyển sang Causal Simulation');
+    showToast(mode === 'research' ? 'Đã chuyển sang D Research' : 'Đã chuyển sang Aleph');
   }
 
   function updateMetrics() {
@@ -592,9 +592,9 @@
         ? `Nghiên cứu sâu (d-research) về chủ đề: "${value}". Cập nhật bằng chứng vào evidence-ledger.jsonl.`
         : `Chạy mô phỏng kịch bản nhân quả (aleph-skill) cho điểm can thiệp: "${value}". Cập nhật timeline.json.`;
       window.sidecar.agent.sendMessage(prompt);
-      showToast(`Đã gửi yêu cầu ${mode === 'research' ? 'Deep Research' : 'Simulation'} tới Agent`);
+      showToast(`Đã gửi yêu cầu ${mode === 'research' ? 'D Research' : 'Aleph'} tới Agent`);
     } else {
-      showToast(`Đã cập nhật đồ thị ${mode === 'research' ? 'bằng chứng' : 'mô phỏng'}`);
+      showToast(`Đã cập nhật đồ thị ${mode === 'research' ? 'D Research' : 'Aleph'}`);
     }
   }
 
