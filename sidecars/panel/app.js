@@ -1,326 +1,892 @@
-import { ObsidianGraph } from './graph.js';
+(() => {
+  'use strict';
 
-const sidecar = window.sidecar;
-const $ = (id) => document.getElementById(id);
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => [...document.querySelectorAll(s)];
 
-let researchGraph = null;
-let timelineGraph = null;
-let liveStreamTimer = null;
+  const icon = (name, cls = 'ico small') => `<svg class="${cls}"><use href="#i-${name}"/></svg>`;
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
 
-// ---------------------------------------------------------------------------
-// 1. Dependency Gatekeeper
-// ---------------------------------------------------------------------------
+  const colors = {
+    source: 'var(--source)',
+    claim: 'var(--claim)',
+    issue: 'var(--issue)',
+    event: 'var(--event)',
+    actor: 'var(--actor)',
+    scenario: 'var(--scenario)'
+  };
 
-async function checkDependencies() {
-  try {
-    const res = await (sidecar ? sidecar.fetch('/api/dependencies') : fetch('/api/dependencies'));
-    const data = await res.json();
+  const labels = {
+    source: 'Nguồn tin',
+    claim: 'Luận điểm',
+    issue: 'Cần kiểm chứng',
+    event: 'Sự kiện',
+    actor: 'Tác nhân',
+    scenario: 'Kịch bản'
+  };
 
-    const isReady = data.ready;
-    const dResearch = data.skills?.dResearch?.installed;
-    const aleph = data.skills?.aleph?.installed;
-
-    // Update UI elements
-    const badgeDResearch = $('badge-d-research');
-    const statusDResearch = $('status-d-research');
-    if (dResearch) {
-      badgeDResearch.className = 'badge-round ok';
-      badgeDResearch.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ok);"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>`;
-      statusDResearch.textContent = 'Đã cài';
-      statusDResearch.style.color = 'var(--ok)';
-    } else {
-      badgeDResearch.className = 'badge-round err';
-      badgeDResearch.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:var(--err);"><path d="M7 7l10 10M17 7L7 17"></path></svg>`;
-      statusDResearch.textContent = 'Chưa cài';
-      statusDResearch.style.color = 'var(--err)';
-    }
-
-    const badgeAleph = $('badge-aleph');
-    const statusAleph = $('status-aleph');
-    if (aleph) {
-      badgeAleph.className = 'badge-round ok';
-      badgeAleph.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ok);"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>`;
-      statusAleph.textContent = 'Đã cài';
-      statusAleph.style.color = 'var(--ok)';
-    } else {
-      badgeAleph.className = 'badge-round err';
-      badgeAleph.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:var(--err);"><path d="M7 7l10 10M17 7L7 17"></path></svg>`;
-      statusAleph.textContent = 'Chưa cài';
-      statusAleph.style.color = 'var(--err)';
-    }
-
-    // Toggle view states
-    if (isReady) {
-      $('view-gatekeeper').style.display = 'none';
-      $('view-main').style.display = 'flex';
-      $('global-status-chip').className = 'status-chip';
-      $('global-status-text').textContent = 'Đang chạy';
-      initGraphsIfNeeded();
-    } else {
-      $('view-gatekeeper').style.display = 'flex';
-      $('view-main').style.display = 'none';
-      $('global-status-chip').className = 'status-chip warn';
-      $('global-status-text').textContent = 'Chưa sẵn sàng';
-    }
-  } catch (err) {
-    console.warn('Dependency check error (running fallback):', err);
-    // If running in preview mode or dev, enable main view
-    $('view-gatekeeper').style.display = 'none';
-    $('view-main').style.display = 'flex';
-    initGraphsIfNeeded();
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 2. Navigation Tabs
-// ---------------------------------------------------------------------------
-
-function switchTab(target) {
-  const tabResearch = $('tab-research');
-  const tabTimeline = $('tab-timeline');
-  const pageResearch = $('page-research');
-  const pageTimeline = $('page-timeline');
-
-  if (target === 'research') {
-    tabResearch.classList.add('active');
-    tabTimeline.classList.remove('active');
-    pageResearch.classList.add('active');
-    pageTimeline.classList.remove('active');
-    if (researchGraph) {
-      researchGraph.initCanvasSize();
-      researchGraph.wake(0.6);
-    }
-  } else {
-    tabResearch.classList.remove('active');
-    tabTimeline.classList.add('active');
-    pageResearch.classList.remove('active');
-    pageTimeline.classList.add('active');
-    if (timelineGraph) {
-      timelineGraph.initCanvasSize();
-      timelineGraph.wake(0.6);
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 3. Obsidian Knowledge Graphs Initialization
-// ---------------------------------------------------------------------------
-
-function initGraphsIfNeeded() {
-  if (researchGraph && timelineGraph) return;
-
-  // 1. Research Sources Graph
-  const rCanvas = $('research-graph-canvas');
-  if (rCanvas && !researchGraph) {
-    researchGraph = new ObsidianGraph(rCanvas, {
-      charge: -140,
-      linkDistance: 45,
-      gravity: 0.04
-    });
-
-    const researchNodes = [
-      { id: 'hub', label: 'Ecosystem AI', type: 'hub', radius: 9 },
-      { id: 'n1', label: 'arxiv:2502', type: 'primary', radius: 6 },
-      { id: 'n2', label: 'github/vllm', type: 'primary', radius: 6 },
-      { id: 'n3', label: 'sec.gov/10K', type: 'primary', radius: 5.5 },
-      { id: 'n4', label: 'reddit/localllama', type: 'social', radius: 5.5 },
-      { id: 'n5', label: 'x.com/thread', type: 'social', radius: 5 },
-      { id: 'n6', label: 'paywall/403', type: 'err', radius: 5.5 }
-    ];
-
-    const researchLinks = [
-      { source: 'hub', target: 'n1' },
-      { source: 'hub', target: 'n2' },
-      { source: 'hub', target: 'n3' },
-      { source: 'hub', target: 'n4' },
-      { source: 'n4', target: 'n5' },
-      { source: 'n1', target: 'n6', type: 'contradict' }
-    ];
-
-    researchGraph.setData(researchNodes, researchLinks);
-
-    // Zoom buttons
-    $('btn-research-zoom-in')?.addEventListener('click', () => {
-      researchGraph.camera.zoom = Math.min(3.0, researchGraph.camera.zoom * 1.2);
-    });
-    $('btn-research-zoom-out')?.addEventListener('click', () => {
-      researchGraph.camera.zoom = Math.max(0.4, researchGraph.camera.zoom * 0.8);
-    });
-    $('btn-research-reset')?.addEventListener('click', () => {
-      researchGraph.camera.zoom = 1;
-      researchGraph.camera.x = researchGraph.width / 2;
-      researchGraph.camera.y = researchGraph.height / 2;
-      researchGraph.wake(0.8);
-    });
-
-    // Start streaming periodic mock nodes to showcase live ingestion
-    startLiveStreamMock();
-  }
-
-  // 2. Causal Timeline Graph
-  const tCanvas = $('timeline-graph-canvas');
-  if (tCanvas && !timelineGraph) {
-    timelineGraph = new ObsidianGraph(tCanvas, {
-      charge: -160,
-      linkDistance: 50,
-      gravity: 0.035
-    });
-
-    const timelineNodes = [
-      { id: 't1', label: 'Sự kiện can thiệp', type: 'fact', radius: 8 },
-      { id: 't2', label: 'Hệ quả trung gian', type: 'inference', radius: 7.5 },
-      { id: 't3', label: 'Giả định hành vi', type: 'assumption', radius: 6.5 },
-      { id: 't4', label: 'Kịch bản mô phỏng', type: 'simulation', radius: 7 },
-      { id: 't5', label: 'Phản thực', type: 'counterfactual', radius: 6 },
-      { id: 't6', label: 'Hệ quả cuối', type: 'hub', radius: 7 },
-      { id: 'src1', label: 'nguồn chứng cứ', type: 'primary', radius: 4.5 }
-    ];
-
-    const timelineLinks = [
-      { source: 't1', target: 't2' },
-      { source: 't2', target: 't4' },
-      { source: 't1', target: 't3' },
-      { source: 't3', target: 't4' },
-      { source: 't2', target: 't5', style: 'dashed' },
-      { source: 't4', target: 't6' },
-      { source: 'src1', target: 't1' }
-    ];
-
-    timelineGraph.setData(timelineNodes, timelineLinks);
-
-    $('btn-timeline-zoom-in')?.addEventListener('click', () => {
-      timelineGraph.camera.zoom = Math.min(3.0, timelineGraph.camera.zoom * 1.2);
-    });
-    $('btn-timeline-zoom-out')?.addEventListener('click', () => {
-      timelineGraph.camera.zoom = Math.max(0.4, timelineGraph.camera.zoom * 0.8);
-    });
-    $('btn-timeline-reset')?.addEventListener('click', () => {
-      timelineGraph.camera.zoom = 1;
-      timelineGraph.camera.x = timelineGraph.width / 2;
-      timelineGraph.camera.y = timelineGraph.height / 2;
-      timelineGraph.wake(0.8);
-    });
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 4. Live Streaming Simulation (Nodes spawning dynamically)
-// ---------------------------------------------------------------------------
-
-function startLiveStreamMock() {
-  if (liveStreamTimer) return;
-  const sampleDomains = [
-    { label: 'huggingface.co', type: 'primary' },
-    { label: 'discord/ai-dev', type: 'social' },
-    { label: 'nature.com/ml', type: 'fact' },
-    { label: 'semianalysis', type: 'primary' }
+  // Base dataset for D-Research
+  const baseResearchNodes = [
+    ['r0', 'AI & việc làm', 'claim', 'Chủ đề trung tâm: tác động AI tới cấu trúc việc làm và năng suất.', 0, 0],
+    ['r1', 'Báo cáo ILO', 'source', 'Báo cáo việc làm toàn cầu: phân tích kỹ năng và mức độ tự động hóa.', -95, -48],
+    ['r2', 'Tự động hoá', 'claim', 'Luận điểm về khả năng tự động hoá các nhóm nhiệm vụ lặp lại.', 76, -72],
+    ['r3', 'Kỹ năng mới', 'claim', 'Sự thay đổi về nhu cầu đào tạo và kỹ năng bổ trợ AI.', -52, 91],
+    ['r4', 'Năng suất', 'claim', 'Giả thuyết: năng suất lao động tăng trưởng mạnh ở các nhóm kỹ thuật.', 91, 70],
+    ['r5', 'Khảo sát DN', 'source', 'Khảo sát 1.200 doanh nghiệp vừa và nhỏ về tốc độ ứng dụng AI.', 136, -14],
+    ['r6', 'Việc làm dịch chuyển', 'issue', 'Cần kiểm chứng: phân biệt giữa mất việc hoàn toàn và biến đổi mô tả công việc.', -144, -6],
+    ['r7', 'Báo cáo OECD', 'source', 'Dữ liệu đo lường kỹ năng số và mức sẵn sàng chuyển đổi.', -40, -128],
+    ['r8', 'Ngành dịch vụ', 'claim', 'Mức độ ảnh hưởng phân hóa rõ rệt giữa dịch vụ và sản xuất.', 17, 143],
+    ['r9', 'Dữ liệu WEF', 'source', 'Báo cáo Future of Jobs: xu hướng kỹ năng nổi bật 2025–2030.', 136, 127],
+    ['r10', 'Đào tạo lại', 'claim', 'Mối liên hệ giữa rủi ro thay thế và chính sách tài trợ đào tạo.', -123, 129],
+    ['r11', 'Độ tin cậy?', 'issue', 'Xác minh độ bao phủ của mẫu khảo sát qua các quốc gia đang phát triển.', 18, -139]
   ];
-  let idx = 0;
 
-  liveStreamTimer = setInterval(() => {
-    if (!researchGraph) return;
-    const item = sampleDomains[idx % sampleDomains.length];
-    const newNodeId = `stream_${Date.now()}`;
+  const baseResearchEdges = [
+    ['r0', 'r1'], ['r0', 'r2'], ['r0', 'r3'], ['r0', 'r4'], ['r0', 'r6'],
+    ['r1', 'r7'], ['r1', 'r6'], ['r2', 'r5'], ['r2', 'r11'], ['r2', 'r4'],
+    ['r3', 'r10'], ['r3', 'r8'], ['r4', 'r9'], ['r8', 'r9'], ['r10', 'r6'],
+    ['r11', 'r7'], ['r8', 'r4'], ['r3', 'r7']
+  ];
 
-    // Add node with ripple pulse animation
-    researchGraph.addNode({
-      id: newNodeId,
-      label: item.label,
-      type: item.type,
-      radius: 5.5,
-      isNew: true
+  // Base dataset for Aleph causal timeline simulation
+  const baseAlephNodes = [
+    ['a0', 'Điểm can thiệp', 'event', 'Can thiệp ban đầu: phổ cập công cụ AI tạo sinh trong doanh nghiệp.', 0, 0],
+    ['a1', 'Doanh nghiệp', 'actor', 'Tác nhân: quyết định quy mô đầu tư, tái cấu trúc và phân bổ ngân sách.', -105, -70],
+    ['a2', 'Người lao động', 'actor', 'Tác nhân: thích ứng kỹ năng mới hoặc đối mặt với áp lực dịch chuyển.', 94, -65],
+    ['a3', 'Chi phí lao động', 'event', 'Biến trung gian ảnh hưởng quyết định mở rộng tự động hóa.', -126, 41],
+    ['a4', 'Đào tạo nhanh', 'scenario', 'Kịch bản A: chuyển đổi thành công nhờ chương trình đào tạo diện rộng.', 75, 71],
+    ['a5', 'Áp lực ngắn hạn', 'scenario', 'Kịch bản B: tốc độ thay thế nhanh hơn năng lực thích ứng của thị trường.', -50, 128],
+    ['a6', 'Chính sách', 'actor', 'Tác nhân: các gói hỗ trợ kỹ năng và khung pháp lý điều tiết.', 143, 18],
+    ['a7', 'Năng suất tăng', 'event', 'Kết quả trung hạn: sản lượng bình quân đầu người tăng trưởng ổn định.', 35, -127],
+    ['a8', 'Làn sóng dịch chuyển', 'scenario', 'Kịch bản C: tỷ lệ dịch chuyển nghề nghiệp đạt đỉnh trong 18 tháng.', -141, -129],
+    ['a9', 'Cân bằng mới', 'scenario', 'Kịch bản D: hình thành các vị trí lai (hybrid roles) bền vững.', 139, 128]
+  ];
+
+  const baseAlephEdges = [
+    ['a0', 'a1'], ['a0', 'a2'], ['a0', 'a7'], ['a1', 'a3'], ['a1', 'a8'],
+    ['a2', 'a4'], ['a2', 'a5'], ['a3', 'a5'], ['a4', 'a9'], ['a4', 'a6'],
+    ['a5', 'a8'], ['a6', 'a4'], ['a6', 'a9'], ['a7', 'a9'], ['a7', 'a5']
+  ];
+
+  const templates = {
+    research: [
+      ['Nghiên cứu Gartner', 'source', 'Báo cáo khảo sát thực nghiệm mức độ hài lòng của nhân sự khi dùng trợ lý AI.', 'r2'],
+      ['Kiểm chứng chéo', 'issue', 'Đối chiếu phương pháp đo lường giữa WEF và OECD về tỷ lệ chuyển đổi.', 'r11'],
+      ['Kỹ năng Prompt & Code', 'claim', 'Nhu cầu tuyển dụng các kỹ năng tích hợp mô hình ngôn ngữ lớn tăng 45%.', 'r3'],
+      ['Tài liệu MIT', 'source', 'Bài báo nghiên cứu đo lường năng suất lập trình viên khi có AI hỗ trợ.', 'r4'],
+      ['Chính sách trợ cấp', 'claim', 'Đề xuất chính sách khấu trừ thuế cho doanh nghiệp đào tạo lại nhân sự.', 'r10'],
+      ['Dữ liệu Eurostat', 'source', 'Số liệu thống kê lao động công nghệ các nước EU quý vừa qua.', 'r0']
+    ],
+    aleph: [
+      ['Đầu tư R&D', 'event', 'Gia tăng nguồn vốn tài trợ nghiên cứu ứng dụng AI trong nước.', 'a1'],
+      ['Nhánh thích ứng cao', 'scenario', 'Kịch bản tối ưu: 85% nhân sự hoàn thành lộ trình đào tạo bổ sung.', 'a4'],
+      ['Tổ chức công đoàn', 'actor', 'Tác nhân đại diện quyền lợi thương lượng của lực lượng lao động.', 'a2'],
+      ['Đột phá hiệu suất', 'event', 'Sự kiện nhảy vọt trong chuỗi giá trị sau 2 năm triển khai.', 'a7'],
+      ['Thị trường tự cân bằng', 'scenario', 'Kịch bản cân bằng tự nhiên với chi phí thích ứng phân bổ đều.', 'a9']
+    ]
+  };
+
+  function buildStore(kind, baseNodes, baseEdges) {
+    const nodes = baseNodes.map(([id, label, type, desc, x, y], i) => ({
+      id, label, type, desc, x, y, vx: 0, vy: 0, seed: true, number: i + 1
+    }));
+    const links = baseEdges.map(([a, b]) => ({ a, b }));
+    const feed = [...nodes.slice(1, 6).reverse()].map((n, i) => ({
+      id: n.id,
+      title: kind === 'research' ? `Đã liên kết ${n.label}` : `Cập nhật ${n.label}`,
+      sub: `${labels[n.type]} · ${2 + (i % 3)} quan hệ`,
+      time: `${(i + 1) * 2} phút trước`,
+      type: n.type
+    }));
+
+    return {
+      nodes,
+      links,
+      feed,
+      live: true,
+      step: 0,
+      query: kind === 'research' ? 'Tác động của AI tới thị trường lao động' : 'Nếu AI được phổ cập nhanh hơn vào năm 2027?',
+      selected: kind === 'research' ? 'r0' : 'a0'
+    };
+  }
+
+  const data = {
+    research: buildStore('research', baseResearchNodes, baseResearchEdges),
+    aleph: buildStore('aleph', baseAlephNodes, baseAlephEdges)
+  };
+
+  let mode = 'research';
+  let inspect = 'feed';
+  let filter = 'all';
+  let theme = 'dark';
+  let width = 360;
+  let height = 310;
+  let scale = 0.85;
+  let panX = 0;
+  let panY = 0;
+  let drag = null;
+  let frames = 0;
+  let recentNode = '';
+  let toastTimeout = null;
+  let autoTimer = null;
+
+  // Real skills availability
+  let dependenciesState = { ready: true, dResearch: true, aleph: true };
+
+  try {
+    theme = localStorage.getItem('agy-theme') || 'dark';
+  } catch (_) {}
+
+  const currentStore = () => data[mode];
+  const selectedNode = () => currentStore().nodes.find((n) => n.id === currentStore().selected);
+
+  // ---------------------------------------------------------------------------
+  // Theme Management
+  // ---------------------------------------------------------------------------
+  function applyTheme() {
+    const actual = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+
+    document.documentElement.dataset.theme = actual;
+    const themeBtn = $('#theme-button');
+    if (themeBtn) {
+      themeBtn.innerHTML = icon(actual === 'light' ? 'sun' : 'moon', 'ico');
+    }
+
+    $$('[data-theme-choice]').forEach((b) => {
+      b.classList.toggle('on', b.dataset.themeChoice === theme);
     });
 
-    // Connect to hub or existing node
-    researchGraph.addLink({
-      source: 'hub',
-      target: newNodeId
+    try {
+      localStorage.setItem('agy-theme', theme);
+    } catch (_) {}
+  }
+
+  function showToast(text) {
+    const el = $('#toast');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => el.classList.remove('show'), 2400);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dependency Gatekeeper Integration
+  // ---------------------------------------------------------------------------
+  async function checkDependencies() {
+    try {
+      const res = await (window.sidecar ? window.sidecar.fetch('/api/dependencies') : fetch('/api/dependencies'));
+      const result = await res.json();
+
+      const dReady = !!result.skills?.dResearch?.installed;
+      const aReady = !!result.skills?.aleph?.installed;
+      const isReady = dReady && aReady;
+
+      dependenciesState = {
+        ready: isReady,
+        dResearch: dReady,
+        aleph: aReady
+      };
+
+      // Update gatekeeper UI
+      const gateD = $('#gate-d');
+      const gateA = $('#gate-a');
+      const gate = $('#gate');
+
+      if (gateD) {
+        gateD.innerHTML = dReady
+          ? `${icon('check')} Đã cài đặt`
+          : '<span style="color:var(--bad);">○ Chưa cài</span>';
+        gateD.style.color = dReady ? 'var(--good)' : 'var(--bad)';
+      }
+
+      if (gateA) {
+        gateA.innerHTML = aReady
+          ? `${icon('check')} Đã cài đặt`
+          : '<span style="color:var(--bad);">○ Chưa cài</span>';
+        gateA.style.color = aReady ? 'var(--good)' : 'var(--bad)';
+      }
+
+      // Update settings modal indicators
+      const setD = $('#setting-status-d');
+      const setA = $('#setting-status-a');
+      if (setD) {
+        setD.textContent = dReady ? '✓ Đã sẵn sàng' : '✗ Chưa cài';
+        setD.style.color = dReady ? 'var(--good)' : 'var(--bad)';
+      }
+      if (setA) {
+        setA.textContent = aReady ? '✓ Đã sẵn sàng' : '✗ Chưa cài';
+        setA.style.color = aReady ? 'var(--good)' : 'var(--bad)';
+      }
+
+      // Show or hide gatekeeper
+      if (gate) {
+        gate.hidden = isReady;
+      }
+
+      return isReady;
+    } catch (err) {
+      console.warn('Dependency check fallback:', err);
+      // Fallback: unlock for preview mode
+      dependenciesState = { ready: true, dResearch: true, aleph: true };
+      const gate = $('#gate');
+      if (gate) gate.hidden = true;
+      return true;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Workspace Data Integration (evidence-ledger.jsonl & timeline.json)
+  // ---------------------------------------------------------------------------
+  async function loadWorkspaceData() {
+    try {
+      const workspaceUri = window.sidecar?.workspace?.uri || '';
+      const url = workspaceUri ? `/api/workspace-data?workspace=${encodeURIComponent(workspaceUri)}` : '/api/workspace-data';
+      const res = await (window.sidecar ? window.sidecar.fetch(url) : fetch(url));
+      const resData = await res.json();
+
+      if (resData.hasWorkspaceData) {
+        const badge = $('#workspace-badge');
+        if (badge) badge.textContent = 'SYNCED';
+
+        // Load evidence records into research graph
+        if (resData.evidenceRecords && resData.evidenceRecords.length > 0) {
+          const rStore = data.research;
+          resData.evidenceRecords.forEach((item, idx) => {
+            const id = 'ev_' + idx;
+            if (!rStore.nodes.some(n => n.id === id)) {
+              const label = item.title || item.source || item.url || `Bằng chứng #${idx + 1}`;
+              rStore.nodes.push({
+                id,
+                label: label.length > 20 ? label.slice(0, 19) + '…' : label,
+                type: 'source',
+                desc: item.snippet || item.claim || item.content || 'Dữ liệu được trích xuất từ workspace.',
+                x: (Math.random() - 0.5) * 200,
+                y: (Math.random() - 0.5) * 160,
+                vx: 0,
+                vy: 0,
+                seed: false
+              });
+              rStore.links.push({ a: id, b: 'r0' });
+            }
+          });
+        }
+
+        frames = 50;
+        updateUI();
+      }
+    } catch (err) {
+      console.log('No workspace data file found, using built-in graph template.');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Graph & Mode Switching
+  // ---------------------------------------------------------------------------
+  function fitScale() {
+    return Math.min(0.95, Math.max(0.65, width / 430)) * Math.min(1, Math.max(0.78, height / 310));
+  }
+
+  function setMode(newMode) {
+    if (mode === newMode) return;
+    currentStore().query = $('#query').value;
+    mode = newMode;
+    filter = 'all';
+    inspect = 'feed';
+    scale = fitScale();
+    panX = panY = 0;
+
+    $('#query').value = currentStore().query;
+    $('#command-heading').textContent = mode === 'research' ? 'Deep research' : 'Causal simulation';
+    $('#run-label').textContent = mode === 'research' ? 'Research' : 'Simulate';
+    $('#graph-name').textContent = mode === 'research' ? 'Evidence graph' : 'Causal graph';
+
+    $$('.mode').forEach((b) => b.classList.toggle('selected', b.dataset.mode === mode));
+
+    updateUI();
+    showToast(mode === 'research' ? 'Đã chuyển sang Deep Research' : 'Đã chuyển sang Causal Simulation');
+  }
+
+  function updateMetrics() {
+    const s = currentStore();
+    const isR = mode === 'research';
+
+    $('#m1').textContent = String(s.nodes.filter((n) => n.type === (isR ? 'source' : 'scenario')).length).padStart(2, '0');
+    $('#m2').textContent = String(s.links.length).padStart(2, '0');
+    $('#m3').textContent = String(s.nodes.filter((n) => n.type === (isR ? 'issue' : 'actor')).length).padStart(2, '0');
+
+    $('#l1').textContent = isR ? 'Nguồn thu thập' : 'Nhánh kịch bản';
+    $('#l2').textContent = isR ? 'Liên kết' : 'Quan hệ nhân quả';
+    $('#l3').textContent = isR ? 'Cần xác minh' : 'Tác nhân';
+
+    $('#graph-counter').textContent = `${s.nodes.length} nodes · ${s.links.length} links`;
+    $('#live-text').textContent = s.live ? 'Live' : 'Paused';
+
+    const liveDot = $('#live-dot');
+    const graphDot = $('#graph-dot');
+    const footerDot = $('#footer-dot');
+
+    if (liveDot) liveDot.classList.toggle('stopped', !s.live);
+    if (graphDot) graphDot.classList.toggle('stopped', !s.live);
+    if (footerDot) footerDot.style.background = s.live ? 'var(--good)' : 'var(--muted)';
+
+    $('#graph-hint').textContent = s.live ? 'LIVE MAPPING' : 'STREAM PAUSED';
+    $('#footer-status').textContent = s.live ? 'Đang theo dõi workspace' : 'Tạm dừng stream';
+
+    const autoSwitch = $('#auto-update');
+    if (autoSwitch) autoSwitch.checked = s.live;
+  }
+
+  function updateFilters() {
+    const opts = mode === 'research'
+      ? [['all', 'Tất cả'], ['source', 'Nguồn tin'], ['claim', 'Luận điểm'], ['issue', 'Xác minh']]
+      : [['all', 'Tất cả'], ['event', 'Sự kiện'], ['actor', 'Tác nhân'], ['scenario', 'Kịch bản']];
+
+    const filtersEl = $('#filters');
+    if (filtersEl) {
+      filtersEl.innerHTML = opts.map(([id, name]) => `
+        <button class="filter ${id === filter ? 'on' : ''}" data-filter="${id}">${name}</button>
+      `).join('');
+    }
+
+    const legendEl = $('#legend');
+    if (legendEl) {
+      legendEl.innerHTML = opts.slice(1).map(([id, name]) => `
+        <span class="lgitem"><span class="lgdot" style="background:${colors[id]}"></span>${name}</span>
+      `).join('');
+    }
+  }
+
+  function neighbours(id) {
+    return currentStore().links
+      .filter((l) => l.a === id || l.b === id)
+      .map((l) => (l.a === id ? l.b : l.a));
+  }
+
+  function renderGraph() {
+    const s = currentStore();
+    const map = new Map(s.nodes.map((n) => [n.id, n]));
+    const sel = s.selected;
+
+    let es = '';
+    let ns = '';
+
+    // Render Edges
+    for (const l of s.links) {
+      const a = map.get(l.a);
+      const b = map.get(l.b);
+      if (!a || !b) continue;
+
+      const active = (l.a === sel || l.b === sel);
+      const dim = filter !== 'all' && a.type !== filter && b.type !== filter;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const endX = mode === 'aleph' ? b.x - (dx / dist) * 10 : b.x;
+      const endY = mode === 'aleph' ? b.y - (dy / dist) * 10 : b.y;
+
+      es += `<line class="edge ${active ? 'active' : ''}"
+        x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}"
+        x2="${endX.toFixed(1)}" y2="${endY.toFixed(1)}"
+        ${mode === 'aleph' ? 'marker-end="url(#causal-arrow)"' : ''}
+        style="${dim ? 'stroke-opacity:0.045;' : ''}${active ? 'stroke:var(--accent);' : ''}" />`;
+    }
+
+    // Render Nodes
+    for (const n of s.nodes) {
+      const focus = n.id === sel;
+      const faded = filter !== 'all' && n.type !== filter;
+      const radius = focus ? 7.4 : (n.id.endsWith('0') ? 6.2 : 5.1);
+      const shortLabel = n.label.length > 20 ? n.label.slice(0, 19) + '…' : n.label;
+
+      ns += `<g class="node ${focus ? 'focus ' : ''}${faded ? 'faded ' : ''}${n.id === recentNode ? 'new' : ''}"
+        data-id="${esc(n.id)}"
+        transform="translate(${n.x.toFixed(1)}, ${n.y.toFixed(1)})">
+        <title>${esc(n.label)} — ${esc(labels[n.type])}</title>
+        <circle class="halo" r="${radius + 8}" stroke="${colors[n.type]}" />
+        <circle class="core" r="${radius}" fill="${colors[n.type]}" />
+        <text x="${radius + 7}" y="3.5">${esc(shortLabel)}</text>
+      </g>`;
+    }
+
+    $('#edges').innerHTML = es;
+    $('#nodes').innerHTML = ns;
+
+    const transformStr = `translate(${(width / 2 + panX).toFixed(2)}, ${(height / 2 + panY).toFixed(2)}) scale(${scale.toFixed(3)})`;
+    $('#graph-transform').setAttribute('transform', transformStr);
+  }
+
+  function updateInspection() {
+    const s = currentStore();
+    $$('[data-inspect]').forEach((b) => b.classList.toggle('on', b.dataset.inspect === inspect));
+    const area = $('#inspect-content');
+    if (!area) return;
+
+    if (inspect === 'feed') {
+      $('#panel-count').textContent = `${s.feed.length} hoạt động`;
+      area.innerHTML = s.feed.map((f) => `
+        <button class="feed-entry" data-select="${esc(f.id)}">
+          <span class="type-icon" style="color:${colors[f.type]}">
+            ${icon(f.type === 'source' ? 'file' : f.type === 'scenario' ? 'branch' : 'network')}
+          </span>
+          <span class="entry-body">
+            <div class="entry-title">${esc(f.title)}</div>
+            <div class="entry-sub">${esc(f.sub)}</div>
+          </span>
+          <span class="entry-time">${esc(f.time)}</span>
+        </button>
+      `).join('');
+    } else if (inspect === 'sources') {
+      const sources = s.nodes.filter((n) => n.type === (mode === 'research' ? 'source' : 'event'));
+      $('#panel-count').textContent = `${sources.length} ${mode === 'research' ? 'nguồn' : 'sự kiện'}`;
+      area.innerHTML = sources.map((n) => `
+        <button class="source-entry" data-select="${esc(n.id)}">
+          <span class="type-icon" style="color:${colors[n.type]}">${icon('file')}</span>
+          <span class="entry-body">
+            <div class="entry-title">${esc(n.label)}</div>
+            <div class="entry-sub">${esc(n.desc)}</div>
+          </span>
+          <span class="entry-time">#${esc(n.id)}</span>
+        </button>
+      `).join('');
+    } else {
+      const n = selectedNode();
+      $('#panel-count').textContent = n ? `#${n.id}` : 'Chưa chọn';
+      if (!n) {
+        area.innerHTML = '<div class="empty">Chọn một node trên đồ thị để xem chi tiết.</div>';
+        return;
+      }
+      const connected = neighbours(n.id).map((id) => s.nodes.find((v) => v.id === id)).filter(Boolean);
+      area.innerHTML = `
+        <div class="detail">
+          <div class="detail-heading">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${colors[n.type]}"></span>
+            <strong>${esc(n.label)}</strong>
+            <span class="type-pill">${esc(labels[n.type])}</span>
+          </div>
+          <p>${esc(n.desc)}</p>
+          <div class="meta">
+            <span>Định danh <strong>${esc(n.id.toUpperCase())}</strong></span>
+            <span>Liên kết <strong>${connected.length}</strong></span>
+            <span>Trạng thái <strong>Sẵn sàng</strong></span>
+          </div>
+          <div class="refs">
+            ${connected.map((v) => `<button class="ref" data-select="${esc(v.id)}">↗ ${esc(v.label)}</button>`).join('')}
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  function updateUI() {
+    updateMetrics();
+    updateFilters();
+    renderGraph();
+    updateInspection();
+  }
+
+  function selectNode(id) {
+    if (!currentStore().nodes.some((n) => n.id === id)) return;
+    currentStore().selected = id;
+    inspect = 'details';
+    updateInspection();
+    renderGraph();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Adding New Nodes & Running Agent Tasks
+  // ---------------------------------------------------------------------------
+  function addDataNode() {
+    if (!dependenciesState.ready) {
+      $('#gate').hidden = false;
+      return;
+    }
+
+    const s = currentStore();
+    const pool = templates[mode];
+    const t = pool[s.step % pool.length];
+    s.step++;
+
+    const [baseName, type, desc, target] = t;
+    const id = (mode === 'research' ? 'rn' : 'an') + s.step;
+    const parent = s.nodes.find((n) => n.id === target) || s.nodes[0];
+    const angle = s.step * 2.39996;
+    const label = baseName + (s.step > pool.length ? ` ${1 + Math.floor(s.step / pool.length)}` : '');
+
+    const node = {
+      id,
+      label,
+      type,
+      desc,
+      x: parent.x + 75 * Math.cos(angle),
+      y: parent.y + 75 * Math.sin(angle),
+      vx: 0,
+      vy: 0,
+      seed: false
+    };
+
+    s.nodes.push(node);
+    s.links.push({ a: id, b: target });
+
+    if (s.nodes.length > 7) {
+      const candidates = s.nodes.filter((n) => n.id !== id && n.type === (type === 'source' ? 'claim' : 'event'));
+      if (candidates.length) {
+        const dest = candidates[(s.step * 5) % candidates.length];
+        if (dest.id !== target) s.links.push({ a: id, b: dest.id });
+      }
+    }
+
+    // Keep memory clean
+    if (s.nodes.length > 36) {
+      const oldest = s.nodes.find((n) => !n.seed && n.id !== id);
+      if (oldest) {
+        s.nodes = s.nodes.filter((n) => n !== oldest);
+        s.links = s.links.filter((l) => l.a !== oldest.id && l.b !== oldest.id);
+      }
+    }
+
+    s.feed.unshift({
+      id,
+      title: mode === 'research' ? `Phát hiện · ${label}` : `Mô phỏng · ${label}`,
+      sub: `${labels[type]} · ${s.links.filter((l) => l.a === id || l.b === id).length} liên kết mới`,
+      time: 'Vừa xong',
+      type
+    });
+    s.feed = s.feed.slice(0, 30);
+
+    recentNode = id;
+    frames = 80;
+    updateUI();
+
+    setTimeout(() => {
+      if (recentNode === id) {
+        recentNode = '';
+        renderGraph();
+      }
+    }, 1250);
+  }
+
+  function onRunQuery() {
+    if (!dependenciesState.ready) {
+      $('#gate').hidden = false;
+      return;
+    }
+
+    const queryInput = $('#query');
+    const value = queryInput ? queryInput.value.trim() : '';
+    if (!value) {
+      showToast('Hãy nhập chủ đề nghiên cứu hoặc điểm can thiệp');
+      return;
+    }
+
+    currentStore().query = value;
+    addDataNode();
+
+    // Send command to Antigravity Agent via Sidecar SDK
+    if (window.sidecar?.agent?.sendMessage) {
+      const prompt = mode === 'research'
+        ? `Nghiên cứu sâu (d-research) về chủ đề: "${value}". Cập nhật bằng chứng vào evidence-ledger.jsonl.`
+        : `Chạy mô phỏng kịch bản nhân quả (aleph-skill) cho điểm can thiệp: "${value}". Cập nhật timeline.json.`;
+      window.sidecar.agent.sendMessage(prompt);
+      showToast(`Đã gửi yêu cầu ${mode === 'research' ? 'Deep Research' : 'Simulation'} tới Agent`);
+    } else {
+      showToast(`Đã cập nhật đồ thị ${mode === 'research' ? 'bằng chứng' : 'mô phỏng'}`);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Graph Physics & Pointer Interaction
+  // ---------------------------------------------------------------------------
+  function world(cx, cy) {
+    const r = $('#network').getBoundingClientRect();
+    return {
+      x: (cx - r.left - width / 2 - panX) / scale,
+      y: (cy - r.top - height / 2 - panY) / scale
+    };
+  }
+
+  function pointerDown(e) {
+    const g = e.target.closest('.node');
+    if (g) {
+      const n = currentStore().nodes.find((node) => node.id === g.dataset.id);
+      if (!n) return;
+      selectNode(n.id);
+      drag = { kind: 'node', id: n.id };
+    } else {
+      drag = { kind: 'pan', px: e.clientX, py: e.clientY, startX: panX, startY: panY };
+    }
+    $('#network').setPointerCapture(e.pointerId);
+    $('#network').classList.add('dragging');
+  }
+
+  function pointerMove(e) {
+    if (!drag) return;
+    if (drag.kind === 'pan') {
+      panX = drag.startX + (e.clientX - drag.px);
+      panY = drag.startY + (e.clientY - drag.py);
+    } else {
+      const n = currentStore().nodes.find((node) => node.id === drag.id);
+      if (n) {
+        const pos = world(e.clientX, e.clientY);
+        n.x = pos.x;
+        n.y = pos.y;
+        n.vx = n.vy = 0;
+        frames = 25;
+      }
+    }
+    renderGraph();
+  }
+
+  function pointerUp(e) {
+    if (!drag) return;
+    drag = null;
+    $('#network').classList.remove('dragging');
+    try {
+      $('#network').releasePointerCapture(e.pointerId);
+    } catch (_) {}
+  }
+
+  function zoom(k) {
+    scale = Math.max(0.35, Math.min(2.4, scale * k));
+    renderGraph();
+  }
+
+  function resizeGraph() {
+    const box = $('#network').getBoundingClientRect();
+    if (!box.width || !box.height) return;
+    const old = width;
+    width = box.width;
+    height = box.height;
+    if (Math.abs(old - width) > 30) scale = fitScale();
+    $('#network').setAttribute('viewBox', `0 0 ${width} ${height}`);
+    renderGraph();
+  }
+
+  function physicsStep() {
+    if (!frames || drag?.kind === 'pan') return;
+    frames--;
+
+    const s = currentStore();
+    const nodes = s.nodes;
+    const map = new Map(nodes.map((n) => [n.id, n]));
+
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      if (drag?.kind === 'node' && drag.id === n.id) continue;
+
+      let fx = -n.x * 0.00024;
+      let fy = -n.y * 0.00024;
+
+      // Repulsion between nodes
+      for (let j = 0; j < nodes.length; j++) {
+        if (i === j) continue;
+        const o = nodes[j];
+        const dx = n.x - o.x;
+        const dy = n.y - o.y;
+        const dist2 = dx * dx + dy * dy + 180;
+        fx += (dx / dist2) * 16.5;
+        fy += (dy / dist2) * 16.5;
+      }
+
+      // Spring tension along links
+      for (const l of s.links) {
+        const o = l.a === n.id ? map.get(l.b) : (l.b === n.id ? map.get(l.a) : null);
+        if (o) {
+          const dx = o.x - n.x;
+          const dy = o.y - n.y;
+          const d = Math.hypot(dx, dy) || 1;
+          const force = (d - 90) * 0.0024;
+          fx += (dx / d) * force;
+          fy += (dy / d) * force;
+        }
+      }
+
+      n.vx = (n.vx + fx) * 0.84;
+      n.vy = (n.vy + fy) * 0.84;
+      n.x += n.vx;
+      n.y += n.vy;
+
+      n.x = Math.max(-190, Math.min(190, n.x));
+      n.y = Math.max(-190, Math.min(190, n.y));
+    }
+
+    renderGraph();
+  }
+
+  let lastTs = 0;
+  function animationLoop(t) {
+    if (t - lastTs > 28) {
+      physicsStep();
+      lastTs = t;
+    }
+    requestAnimationFrame(animationLoop);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Event Listeners
+  // ---------------------------------------------------------------------------
+  function setupEvents() {
+    // Mode switcher
+    $$('[data-mode]').forEach((btn) => {
+      btn.addEventListener('click', () => setMode(btn.dataset.mode));
     });
 
-    // Add row to live feed
-    addFeedRow(item.label, 'R1', 'Đã thu thập trích dẫn mới', 'vừa xong');
+    // Live toggle
+    $('#live-button').onclick = () => {
+      currentStore().live = !currentStore().live;
+      updateMetrics();
+      showToast(currentStore().live ? 'Đã bật luồng tự động' : 'Đã tạm dừng luồng');
+    };
 
-    idx++;
-    if (idx >= 8) clearInterval(liveStreamTimer); // Bounded mock
-  }, 14000);
-}
+    // Theme button
+    $('#theme-button').onclick = () => {
+      theme = theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark';
+      applyTheme();
+    };
 
-function addFeedRow(domain, tier, title, time) {
-  const feed = $('research-feed-list');
-  if (!feed) return;
+    $$('[data-theme-choice]').forEach((b) => {
+      b.onclick = () => {
+        theme = b.dataset.themeChoice;
+        applyTheme();
+      };
+    });
 
-  const row = document.createElement('div');
-  row.className = 'feed-row';
-  row.innerHTML = `
-    <div style="width:16px; height:16px; border-radius:50%; background:var(--ok-bg); display:flex; align-items:center; justify-content:center; flex:none;">
-      <svg aria-hidden="true" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ok);"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
-    </div>
-    <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span class="mono-tag">${domain}</span>
-        <span class="pill-tier" style="background:var(--ok-bg); color:var(--ok);">${tier}</span>
-      </div>
-      <span style="font-weight:500; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</span>
-    </div>
-    <span class="mono-tag" style="flex:none;">${time}</span>
-  `;
-  feed.insertBefore(row, feed.firstChild);
-}
+    // Settings modal
+    $('#settings-button').onclick = () => {
+      $('#modal').hidden = false;
+    };
+    $('#modal-close').onclick = () => {
+      $('#modal').hidden = true;
+    };
+    $('#modal').addEventListener('click', (e) => {
+      if (e.target.id === 'modal') $('#modal').hidden = true;
+    });
 
-// ---------------------------------------------------------------------------
-// 5. User Actions & Agent Bridge
-// ---------------------------------------------------------------------------
+    // Gatekeeper modal
+    $('#gate-recheck').onclick = async () => {
+      const ok = await checkDependencies();
+      showToast(ok ? 'Tất cả skill đã sẵn sàng' : 'Chưa tìm thấy đủ 2 skill');
+    };
 
-function setupEventListeners() {
-  $('tab-research')?.addEventListener('click', () => switchTab('research'));
-  $('tab-timeline')?.addEventListener('click', () => switchTab('timeline'));
+    $('#gate-install-btn').onclick = () => {
+      if (window.sidecar?.agent?.sendMessage) {
+        window.sidecar.agent.sendMessage(
+          'Hãy cài đặt 2 skill bắt buộc cho AGY Research Studio: d-research (tại ~/.gemini/config/skills/d-research-skill) và aleph-skill (tại ~/.gemini/config/skills/aleph-skill).'
+        );
+        showToast('Đã gửi yêu cầu cài đặt tới Agent trong chat');
+      } else {
+        showToast('Vui lòng mở Antigravity Chat để yêu cầu Agent cài skill');
+      }
+    };
 
-  // Gatekeeper: Auto install
-  $('btn-auto-install')?.addEventListener('click', async () => {
-    const prompt = 'Hãy kiểm tra và cài đặt giúp tôi skill d-research và aleph-skill vào hệ thống Antigravity.';
-    if (sidecar?.agent?.sendMessage) {
-      await sidecar.agent.sendMessage(prompt);
-    } else {
-      alert(`[Demo Mode] Đã gửi lệnh tới Agent: "${prompt}"`);
-    }
-  });
+    // Auto-update switch
+    $('#auto-update').onchange = (e) => {
+      currentStore().live = e.target.checked;
+      updateMetrics();
+    };
 
-  // Gatekeeper: Re-check
-  $('btn-recheck')?.addEventListener('click', () => {
-    checkDependencies();
-  });
+    // Filters
+    $('#filters').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-filter]');
+      if (b) {
+        filter = b.dataset.filter;
+        updateFilters();
+        renderGraph();
+      }
+    });
 
-  // Toggle research run
-  $('btn-toggle-research')?.addEventListener('click', () => {
-    const btn = $('btn-toggle-research');
-    const isRunning = btn.textContent.includes('Dừng');
-    if (isRunning) {
-      btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12-7.5z"></path></svg> Tiếp tục`;
-      $('global-status-text').textContent = 'Tạm dừng';
-      $('global-status-chip').className = 'status-chip warn';
-    } else {
-      btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg> Dừng`;
-      $('global-status-text').textContent = 'Đang chạy';
-      $('global-status-chip').className = 'status-chip';
-    }
-  });
+    // Inspector tabs
+    $$('[data-inspect]').forEach((b) => {
+      b.onclick = () => {
+        inspect = b.dataset.inspect;
+        updateInspection();
+      };
+    });
 
-  // Run Branch B
-  $('btn-run-branch')?.addEventListener('click', async () => {
-    const prompt = 'Chạy mô phỏng kịch bản Nhánh B với aleph-skill và cập nhật đồ thị nhân quả.';
-    if (sidecar?.agent?.sendMessage) {
-      await sidecar.agent.sendMessage(prompt);
-    } else {
-      alert(`[Demo Mode] Đã gửi lệnh tới Agent: "${prompt}"`);
-    }
-  });
-}
+    // Node selection from inspector lists
+    $('#inspect-content').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-select]');
+      if (b) selectNode(b.dataset.select);
+    });
 
-// ---------------------------------------------------------------------------
-// Bootloader
-// ---------------------------------------------------------------------------
+    // Run query
+    $('#run').onclick = onRunQuery;
+    $('#query').onkeydown = (e) => {
+      if (e.key === 'Enter') onRunQuery();
+    };
 
-document.addEventListener('DOMContentLoaded', () => {
-  setupEventListeners();
+    // Graph toolbar
+    $('#add-node').onclick = () => {
+      addDataNode();
+      showToast('Đã thêm node mẫu');
+    };
+
+    $('#zoom-in').onclick = () => zoom(1.22);
+    $('#zoom-out').onclick = () => zoom(0.82);
+    $('#zoom-reset').onclick = () => {
+      scale = fitScale();
+      panX = panY = 0;
+      renderGraph();
+    };
+
+    $('#expand').onclick = () => {
+      $('#shell').classList.toggle('graph-expanded');
+      $('#expand').classList.toggle('active');
+      setTimeout(resizeGraph, 35);
+    };
+
+    // Pointer events for graph
+    const network = $('#network');
+    network.addEventListener('pointerdown', pointerDown);
+    network.addEventListener('pointermove', pointerMove);
+    network.addEventListener('pointerup', pointerUp);
+    network.addEventListener('pointercancel', pointerUp);
+
+    $('#graph').addEventListener('wheel', (e) => {
+      e.preventDefault();
+      zoom(e.deltaY < 0 ? 1.09 : 0.91);
+    }, { passive: false });
+
+    // Resize observer
+    new ResizeObserver(resizeGraph).observe($('#graph'));
+
+    // OS Theme change
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (theme === 'system') applyTheme();
+    });
+
+    // ESC key closes modals
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        $('#modal').hidden = true;
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bootstrapping
+  // ---------------------------------------------------------------------------
+  applyTheme();
+  setupEvents();
+  updateUI();
+  resizeGraph();
+  frames = 55;
+  requestAnimationFrame(animationLoop);
+
+  // Check dependencies and workspace data
   checkDependencies();
-});
+  loadWorkspaceData();
+
+  // Periodic simulated data addition if live is enabled
+  autoTimer = setInterval(() => {
+    if (!$('#modal').hidden || !dependenciesState.ready) return;
+    if (currentStore().live) {
+      addDataNode();
+    }
+  }, 4800);
+
+})();

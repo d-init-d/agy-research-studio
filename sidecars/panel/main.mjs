@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import { Response, SidecarApp } from 'sidecar_sdk';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env.ANTIGRAVITY_EXECUTABLE_DATA_DIR || join(HERE, '.data');
 const STARTED_AT = Date.now();
 
 const app = new SidecarApp();
@@ -18,7 +17,6 @@ const readLocal = (name) => readFileSync(join(HERE, name), 'utf8');
 // ---------------------------------------------------------------------------
 app.page('/', () => readLocal('index.html'));
 app.page('/app.js', () => readLocal('app.js'));
-app.page('/graph.js', () => readLocal('graph.js'));
 app.api('/styles.css', () => new Response(readLocal('styles.css'), { contentType: 'text/css' }), 'GET');
 
 // ---------------------------------------------------------------------------
@@ -94,18 +92,31 @@ app.api('/api/dependencies', () => {
 
 // GET /api/workspace-data: Fetch live evidence ledger and causal graph from workspace
 app.api('/api/workspace-data', (params) => {
-  let workspacePath = null;
+  let targetDir = null;
   if (params && params.workspace) {
     try {
-      workspacePath = fileURLToPath(params.workspace);
+      targetDir = fileURLToPath(params.workspace);
     } catch {
-      workspacePath = params.workspace;
+      targetDir = params.workspace;
     }
   }
 
+  const candidateDirs = [
+    targetDir,
+    process.env.WORKSPACE_ROOT,
+    process.env.PWD,
+    process.cwd(),
+    join(homedir(), 'Downloads', 'd-research ui:aleph skill ui'),
+  ].filter(Boolean);
+
   let ledgerRows = [];
-  if (workspacePath) {
-    const ledgerFile = join(workspacePath, 'evidence-ledger.jsonl');
+  let timelineData = null;
+  let foundDir = null;
+
+  for (const dir of candidateDirs) {
+    if (!existsSync(dir)) continue;
+
+    const ledgerFile = join(dir, 'evidence-ledger.jsonl');
     if (existsSync(ledgerFile)) {
       try {
         const content = readFileSync(ledgerFile, 'utf8');
@@ -116,15 +127,32 @@ app.api('/api/workspace-data', (params) => {
             try { return JSON.parse(line); } catch { return null; }
           })
           .filter(Boolean);
+        foundDir = dir;
       } catch (err) {
         console.error('Error reading evidence-ledger.jsonl:', err);
       }
     }
+
+    const timelineFile = join(dir, 'timeline.json');
+    if (existsSync(timelineFile)) {
+      try {
+        timelineData = JSON.parse(readFileSync(timelineFile, 'utf8'));
+        foundDir = dir;
+      } catch (err) {
+        console.error('Error reading timeline.json:', err);
+      }
+    }
+
+    if (ledgerRows.length > 0 || timelineData) {
+      break;
+    }
   }
 
   return {
-    hasWorkspaceData: ledgerRows.length > 0,
-    records: ledgerRows
+    hasWorkspaceData: ledgerRows.length > 0 || timelineData !== null,
+    workspaceDir: foundDir,
+    evidenceRecords: ledgerRows,
+    timelineData: timelineData
   };
 }, 'GET');
 
