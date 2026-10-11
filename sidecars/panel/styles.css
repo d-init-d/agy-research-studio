@@ -17,7 +17,7 @@ html[data-theme="dark"] {
   --border: var(--border, #34363b);
   --soft: var(--muted-border, #292b30);
   --text: var(--foreground, #e9eaed);
-  --secondary: var(--muted-foreground, #a8abb2);
+  --sub: var(--muted-foreground, #a8abb2);
   --muted: var(--muted-foreground, #7c818a);
   --accent: var(--primary, #a8bafa);
   --accent-wash: #283146;
@@ -44,7 +44,7 @@ html[data-theme="light"] {
   --border: var(--border, #e0e3e8);
   --soft: var(--muted-border, #eceef1);
   --text: var(--foreground, #262b32);
-  --secondary: var(--muted-foreground, #5f6670);
+  --sub: var(--muted-foreground, #5f6670);
   --muted: var(--muted-foreground, #8b9099);
   --accent: var(--primary, #486fab);
   --accent-wash: #e8effb;
@@ -189,7 +189,7 @@ svg.ico {
   place-items: center;
   background: transparent;
   border: 1px solid transparent;
-  color: var(--secondary);
+  color: var(--sub);
   border-radius: 7px;
   transition: background var(--easing), color var(--easing);
 }
@@ -230,7 +230,7 @@ svg.ico {
   background: transparent;
   padding: 6px 11px;
   border-radius: 6px;
-  color: var(--secondary);
+  color: var(--sub);
   font-size: 11px;
   font-weight: 550;
   transition: all var(--easing);
@@ -420,7 +420,7 @@ svg.ico {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: var(--secondary);
+  color: var(--sub);
   transition: all var(--easing);
 }
 
@@ -491,7 +491,7 @@ svg.ico {
 }
 
 .edge {
-  stroke: var(--secondary);
+  stroke: var(--sub);
   stroke-width: 1.05;
   stroke-opacity: 0.22;
   transition: stroke-opacity 0.12s;
@@ -524,7 +524,7 @@ svg.ico {
 }
 
 .node text {
-  fill: var(--secondary);
+  fill: var(--sub);
   font-size: 9.5px;
   font-weight: 520;
   paint-order: stroke;
@@ -579,7 +579,7 @@ svg.ico {
   background: color-mix(in srgb, var(--surface), transparent 8%);
   border: 1px solid var(--border);
   border-radius: 6px;
-  color: var(--secondary);
+  color: var(--sub);
   transition: all var(--easing);
 }
 
@@ -595,7 +595,7 @@ svg.ico {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: var(--secondary);
+  color: var(--sub);
   background: color-mix(in srgb, var(--surface), transparent 8%);
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -771,7 +771,7 @@ svg.ico {
 }
 
 .type-pill {
-  color: var(--secondary);
+  color: var(--sub);
   border: 1px solid var(--border);
   border-radius: 5px;
   padding: 2.5px 6px;
@@ -782,7 +782,7 @@ svg.ico {
 .detail p {
   font-size: 11px;
   line-height: 1.6;
-  color: var(--secondary);
+  color: var(--sub);
   margin: 0 0 10px;
 }
 
@@ -811,7 +811,7 @@ svg.ico {
   padding: 4px 7px;
   border: 1px solid var(--border);
   border-radius: 5px;
-  color: var(--secondary);
+  color: var(--sub);
   background: var(--raised);
   cursor: pointer;
   transition: all var(--easing);
@@ -928,7 +928,7 @@ svg.ico {
 .gate p {
   font-size: 11px;
   line-height: 1.6;
-  color: var(--secondary);
+  color: var(--sub);
   margin: 0 0 14px;
 }
 
@@ -948,7 +948,7 @@ svg.ico {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: var(--secondary);
+  color: var(--sub);
   font-size: 10.5px;
   font-weight: 550;
 }
@@ -1034,7 +1034,7 @@ svg.ico {
 .selector button {
   border: 0;
   background: transparent;
-  color: var(--secondary);
+  color: var(--sub);
   padding: 5px 8px;
   border-radius: 5px;
   font-size: 10px;
