@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>AGY Research Studio</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/preload.js"></script>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="6.5"></circle>
+          <path d="M20 20l-4.2-4.2"></path>
+        </svg>
+      </div>
+      <span class="brand-title">Research Studio</span>
+    </div>
+    <div id="global-status-chip" class="status-chip">
+      <span class="pulse-dot">
+        <span class="ping"></span>
+        <span class="core"></span>
+      </span>
+      <span id="global-status-text">Đang chạy</span>
+    </div>
+  </header>
+
+  <!-- Views Wrapper -->
+  <main class="views-wrapper">
+
+    <!-- 1. GATEKEEPER VIEW (Shown when required skills are missing) -->
+    <section id="view-gatekeeper" class="view-page gatekeeper-container" style="display: none;">
+      <div class="gatekeeper-hero">
+        <div class="lock-avatar">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="11" width="14" height="9" rx="2"></rect>
+            <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
+          </svg>
+        </div>
+        <h1 class="gatekeeper-title">Cần cài thêm thành phần</h1>
+        <p class="gatekeeper-desc">Research Studio dùng hai skill dưới đây để thu thập nguồn và chạy mô phỏng. Cài đủ cả hai để mở khoá giao diện.</p>
+      </div>
+
+      <div class="dependency-box">
+        <div class="dependency-row">
+          <div id="badge-d-research" class="badge-round ok">
+            <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12.5l4.5 4.5L19 7.5"></path>
+            </svg>
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:600;">d-research</div>
+            <div style="font-size:12px; color:var(--muted);">Thu thập và thẩm định nguồn</div>
+          </div>
+          <span id="status-d-research" style="font-size:12px; font-weight:500; color:var(--ok);">Đã cài</span>
+        </div>
+
+        <div class="dependency-row">
+          <div id="badge-aleph" class="badge-round err">
+            <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 7l10 10M17 7L7 17"></path>
+            </svg>
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:600;">aleph-skill</div>
+            <div style="font-size:12px; color:var(--muted);">Dựng đồ thị nhân quả và mô phỏng kịch bản</div>
+          </div>
+          <span id="status-aleph" style="font-size:12px; font-weight:500; color:var(--err);">Chưa cài</span>
+        </div>
+      </div>
+
+      <div style="width:100%; display:flex; flex-direction:column; gap:8px;">
+        <button id="btn-auto-install" type="button" class="btn-primary">
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+          </svg>
+          Cài qua Agent
+        </button>
+        <button id="btn-recheck" type="button" class="btn-secondary">Quét lại</button>
+      </div>
+
+      <div style="font-size:11.5px; color:var(--muted); text-align:center;">
+        Đang quét <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace; color:var(--fg);">~/.gemini/config/skills/</span>
+      </div>
+    </section>
+
+    <!-- 2. MAIN COCKPIT VIEW (Active when unlocked) -->
+    <section id="view-main" class="view-page active">
+
+      <!-- Navigation Sub-Tabs -->
+      <nav class="nav-tabs">
+        <button id="tab-research" class="tab-btn active">Deep Research</button>
+        <button id="tab-timeline" class="tab-btn">Causal Timeline</button>
+      </nav>
+
+      <!-- TAB 1: DEEP RESEARCH PAGE -->
+      <div id="page-research" class="view-page active">
+        <!-- Summary Header -->
+        <div style="flex:none; display:flex; flex-direction:column; gap:12px; padding:14px 16px; border-bottom:1px solid var(--border);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:11.5px; color:var(--muted); font-weight:500;">Đang nghiên cứu</div>
+              <div id="research-topic-text" style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Ecosystems & AI Reasoning</div>
+            </div>
+            <span style="padding:2px 8px; border-radius:6px; background:var(--panel); font-size:11.5px; font-weight:500;">Chuẩn</span>
+            <button id="btn-toggle-research" type="button" class="btn-secondary" style="height:32px; padding:0 12px; border-radius:8px; font-size:12px;">
+              <svg aria-hidden="true" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>
+              Dừng
+            </button>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline;">
+              <span style="font-weight:500; font-size:12px;">Đang thu thập nguồn</span>
+              <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11.5px; color:var(--muted);">Giai đoạn 2/4</span>
+            </div>
+            <div style="height:4px; border-radius:999px; background:var(--panel); overflow:hidden;">
+              <div style="width:65%; height:4px; border-radius:999px; background:var(--accent);"></div>
+            </div>
+          </div>
+          <div style="display:flex; gap:16px; font-size:11.5px; color:var(--muted);">
+            <span><span id="count-read" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-weight:600; color:var(--fg);">14</span> đã đọc</span>
+            <span><span id="count-reading" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-weight:600; color:var(--fg);">3</span> đang đọc</span>
+            <span style="color:var(--err);"><span id="count-blocked" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-weight:600;">1</span> bị chặn</span>
+          </div>
+        </div>
+
+        <!-- Mạng liên kết nguồn (Obsidian Force Graph) -->
+        <div style="flex:none; display:flex; flex-direction:column; gap:8px; padding:12px 16px 0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; height:20px;">
+            <span style="font-size:12px; color:var(--muted); font-weight:500;">Mạng liên kết nguồn (Obsidian Graph)</span>
+            <span style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--accent);">
+              <span class="pulse-dot"><span class="ping"></span><span class="core"></span></span>
+              Live
+            </span>
+          </div>
+          <div class="graph-card">
+            <canvas id="research-graph-canvas" class="graph-canvas"></canvas>
+            <div class="graph-floating-controls">
+              <button id="btn-research-zoom-in" class="graph-btn-mini" title="Phóng to">+</button>
+              <button id="btn-research-zoom-out" class="graph-btn-mini" title="Thu nhỏ">−</button>
+              <button id="btn-research-reset" class="graph-btn-mini" title="Đặt lại vị trí">⟲</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feed nguồn mới nhất -->
+        <div style="flex:1; min-height:0; display:flex; flex-direction:column; padding-top:14px;">
+          <div style="flex:none; display:flex; justify-content:space-between; align-items:center; padding:0 16px 6px;">
+            <span style="font-weight:600; font-size:12.5px;">Nguồn mới nhất</span>
+            <span style="font-size:11.5px; color:var(--muted);">Tự cập nhật</span>
+          </div>
+          <div id="research-feed-list" style="flex:1; min-height:0; overflow-y:auto; border-top:1px solid var(--border);">
+            <!-- Sample feed row 1 -->
+            <div class="feed-row active">
+              <div style="width:16px; height:16px; border-radius:50%; border:2px solid var(--tint); border-top-color:var(--accent); flex:none; animation: spin 1s linear infinite;"></div>
+              <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="mono-tag">arxiv.org/abs/2502</span>
+                  <span class="pill-tier">R2</span>
+                </div>
+                <span style="font-weight:500; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Đang phân tích cấu trúc bộ suy luận…</span>
+              </div>
+              <span class="mono-tag" style="flex:none;">vừa xong</span>
+            </div>
+            <!-- Sample feed row 2 -->
+            <div class="feed-row">
+              <div style="width:16px; height:16px; border-radius:50%; background:var(--ok-bg); display:flex; align-items:center; justify-content:center; flex:none;">
+                <svg aria-hidden="true" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ok);"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+              </div>
+              <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="mono-tag">github.com/vllm</span>
+                  <span class="pill-tier" style="background:var(--ok-bg); color:var(--ok);">R0</span>
+                </div>
+                <span style="font-weight:500; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Báo cáo kiến trúc bộ nhớ & kernel</span>
+              </div>
+              <span class="mono-tag" style="flex:none;">5 giây</span>
+            </div>
+            <!-- Sample feed row 3 -->
+            <div class="feed-row">
+              <div style="width:16px; height:16px; border-radius:50%; background:var(--err-bg); display:flex; align-items:center; justify-content:center; flex:none;">
+                <svg aria-hidden="true" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="color:var(--err);"><path d="M7 7l10 10M17 7L7 17"></path></svg>
+              </div>
+              <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="mono-tag">paywalled-forum.net</span>
+                </div>
+                <span style="font-weight:500; font-size:12px; color:var(--err); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Bị chặn · 403 Forbidden</span>
+              </div>
+              <span class="mono-tag" style="flex:none;">12 giây</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: CAUSAL TIMELINE PAGE -->
+      <div id="page-timeline" class="view-page">
+        <!-- Branch Switcher Bar -->
+        <div style="flex:none; display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border);">
+          <div style="display:flex; padding:3px; gap:2px; border-radius:10px; background:var(--panel);">
+            <button id="btn-branch-a" type="button" class="tab-btn" style="height:30px; width:64px; border-radius:8px; border:none; padding:0; justify-content:center; font-size:12px;">Nhánh A</button>
+            <button id="btn-branch-b" type="button" class="tab-btn active" style="height:30px; width:64px; border-radius:8px; border:none; background:var(--card); color:var(--fg); box-shadow:0 0 0 1px var(--border); padding:0; justify-content:center; font-size:12px;">Nhánh B</button>
+            <button id="btn-branch-c" type="button" class="tab-btn" style="height:30px; width:64px; border-radius:8px; border:none; padding:0; justify-content:center; font-size:12px;">Nhánh C</button>
+          </div>
+          <button id="btn-run-branch" type="button" class="btn-primary" style="height:34px; padding:0 14px; font-size:12px;">
+            <svg aria-hidden="true" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12-7.5z"></path></svg>
+            Chạy nhánh B
+          </button>
+        </div>
+
+        <!-- Causal DAG Graph Canvas -->
+        <div style="flex:none; display:flex; flex-direction:column; gap:8px; padding:12px 16px; border-bottom:1px solid var(--border);">
+          <div style="display:flex; justify-content:space-between; align-items:center; height:20px;">
+            <span style="font-size:12px; color:var(--muted); font-weight:500;">Đồ thị nhân quả và chứng cứ</span>
+            <span style="display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--accent);">
+              <span class="pulse-dot"><span class="ping"></span><span class="core"></span></span>
+              Live
+            </span>
+          </div>
+
+          <!-- Legend -->
+          <div class="legend-strip">
+            <span class="legend-item"><span class="legend-dot" style="background:var(--ok);"></span>fact</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--accent);"></span>inference</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--warn);"></span>assumption</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--fg);"></span>simulation</span>
+            <span class="legend-item"><span class="legend-dot" style="border:1.5px dashed var(--muted); background:transparent;"></span>counterfactual</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--muted);"></span>nguồn</span>
+          </div>
+
+          <div class="graph-card" style="height: 230px;">
+            <canvas id="timeline-graph-canvas" class="graph-canvas"></canvas>
+            <div class="graph-floating-controls">
+              <button id="btn-timeline-zoom-in" class="graph-btn-mini" title="Phóng to">+</button>
+              <button id="btn-timeline-zoom-out" class="graph-btn-mini" title="Thu nhỏ">−</button>
+              <button id="btn-timeline-reset" class="graph-btn-mini" title="Đặt lại">⟲</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nhánh rẽ từ mốc can thiệp -->
+        <div style="flex:none; display:flex; flex-direction:column; gap:6px; padding:12px 16px; border-bottom:1px solid var(--border);">
+          <div style="display:flex; justify-content:space-between; align-items:baseline;">
+            <span style="font-size:12px; color:var(--muted); font-weight:500;">Nhánh rẽ từ mốc can thiệp</span>
+            <span class="mono-tag" style="font-size:11px;">t0 → t+3</span>
+          </div>
+          <div style="height:24px; display:flex; align-items:center; gap:10px;">
+            <span style="width:54px; font-size:12px; color:var(--muted);">Nhánh A</span>
+            <div style="flex:1; height:3px; border-radius:2px; background:var(--border);"></div>
+            <span class="mono-tag" style="width:30px; text-align:right;">54%</span>
+          </div>
+          <div style="height:24px; display:flex; align-items:center; gap:10px;">
+            <span style="width:54px; font-size:12px; font-weight:600; color:var(--fg);">Nhánh B</span>
+            <div style="flex:1; height:3px; border-radius:2px; background:var(--accent);"></div>
+            <span class="mono-tag" style="width:30px; text-align:right; font-weight:600; color:var(--fg);">31%</span>
+          </div>
+          <div style="height:24px; display:flex; align-items:center; gap:10px;">
+            <span style="width:54px; font-size:12px; color:var(--muted);">Nhánh C</span>
+            <div style="flex:1; height:3px; border-radius:2px; background:var(--border);"></div>
+            <span class="mono-tag" style="width:30px; text-align:right;">15%</span>
+          </div>
+        </div>
+
+        <!-- Feed Chứng cứ mới -->
+        <div style="flex:1; min-height:0; display:flex; flex-direction:column; padding-top:10px;">
+          <div style="flex:none; display:flex; justify-content:space-between; align-items:center; padding:0 16px 6px;">
+            <span style="font-weight:600; font-size:12.5px;">Chứng cứ mới</span>
+            <span style="font-size:11.5px; color:var(--muted);">Tự cập nhật</span>
+          </div>
+          <div id="timeline-feed-list" style="flex:1; min-height:0; overflow-y:auto; border-top:1px solid var(--border);">
+            <div class="feed-row active">
+              <span class="pulse-dot" style="flex:none;"><span class="ping"></span><span class="core"></span></span>
+              <div style="flex:1; min-width:0; display:flex; flex-direction:column;">
+                <span class="mono-tag">arxiv.org/2502</span>
+                <span style="font-weight:500; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Liên kết tới: Hệ quả trung gian</span>
+              </div>
+              <span class="mono-tag" style="flex:none;">vừa xong</span>
+            </div>
+            <div class="feed-row">
+              <div style="width:7px; height:7px; border-radius:50%; background:var(--ok); flex:none;"></div>
+              <div style="flex:1; min-width:0; display:flex; flex-direction:column;">
+                <span class="mono-tag">sec.gov/filing</span>
+                <span style="font-weight:500; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Xác thực Fact: Chuỗi cung ứng mở rộng</span>
+              </div>
+              <span class="mono-tag" style="flex:none;">8 giây</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

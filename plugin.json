@@ -1,0 +1,11 @@
+{
+  "name": "agy-research-studio",
+  "displayName": "AGY Research Studio",
+  "description": "Interactive Side Pane UI for D-Research & Aleph Causal Simulation with real-time Obsidian-style knowledge graphs.",
+  "logo": "assets/logo.svg",
+  "suggestedPrompts": [
+    "Open AGY Research Studio to monitor deep research and causal graphs",
+    "Run deep research on autonomous AI agent ecosystems",
+    "Simulate counterfactual timeline scenario with Aleph"
+  ]
+}
