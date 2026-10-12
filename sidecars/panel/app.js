@@ -134,7 +134,8 @@
   let dependenciesState = { ready: true, dResearch: true, aleph: true };
 
   try {
-    theme = localStorage.getItem('agy-theme') || 'system';
+    const saved = localStorage.getItem('agy-theme-v2');
+    theme = (saved === 'dark' || saved === 'light') ? saved : 'system';
   } catch (_) {}
 
   const currentStore = () => data[mode];
@@ -179,7 +180,7 @@
     });
 
     try {
-      localStorage.setItem('agy-theme', theme);
+      localStorage.setItem('agy-theme-v2', theme);
     } catch (_) {}
 
     frames = 15;

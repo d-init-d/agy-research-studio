@@ -13,11 +13,17 @@ const app = new SidecarApp();
 const readLocal = (name) => readFileSync(join(HERE, name), 'utf8');
 
 // ---------------------------------------------------------------------------
-// Static routes
+// Static routes with no-cache headers to prevent stale webview cache
 // ---------------------------------------------------------------------------
-app.page('/', () => readLocal('index.html'));
-app.page('/app.js', () => readLocal('app.js'));
-app.api('/styles.css', () => new Response(readLocal('styles.css'), { contentType: 'text/css' }), 'GET');
+const NO_CACHE = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+  'Pragma': 'no-cache',
+  'Expires': '0'
+};
+
+app.page('/', () => new Response(readLocal('index.html'), { contentType: 'text/html; charset=utf-8', headers: NO_CACHE }));
+app.api('/app.js', () => new Response(readLocal('app.js'), { contentType: 'application/javascript; charset=utf-8', headers: NO_CACHE }), 'GET');
+app.api('/styles.css', () => new Response(readLocal('styles.css'), { contentType: 'text/css; charset=utf-8', headers: NO_CACHE }), 'GET');
 
 // ---------------------------------------------------------------------------
 // APIs
