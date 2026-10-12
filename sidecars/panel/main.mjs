@@ -169,9 +169,16 @@ app.api('/api/workspace-data', (params) => {
     workspaceDir: foundDir,
     evidenceRecords: ledgerRows,
     timelineData: timelineData,
-    topic: coverageData?.topic || (ledgerRows.length > 0 ? 'iPhone 15' : null),
+    topic: coverageData?.topic || (ledgerRows.length > 0 ? (ledgerRows[0]?.title || 'Chủ đề nghiên cứu') : null),
     coverage: coverageData
   };
 }, 'GET');
+
+// POST /api/new-session: Register new search query from UI
+app.api('/api/new-session', (body) => {
+  const topic = body?.topic || '';
+  const mode = body?.mode || 'research';
+  return { status: 'ok', topic, mode };
+}, 'POST');
 
 app.run();

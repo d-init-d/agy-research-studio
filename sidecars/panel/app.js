@@ -8,6 +8,15 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
+  const getDomain = (u) => {
+    if (!u) return '';
+    try {
+      const parsed = new URL(u);
+      return parsed.hostname.replace(/^www\./, '');
+    } catch (_) {
+      return u.length > 25 ? u.slice(0, 24) + '…' : u;
+    }
+  };
 
   const colors = {
     source: 'var(--source)',
@@ -90,6 +99,7 @@
   let toastTimeout = null;
   let autoTimer = null;
   let dependenciesState = { ready: true, dResearch: true, aleph: true };
+  let activeTopic = '';
 
   try {
     const saved = localStorage.getItem('agy-theme-v2');
@@ -238,22 +248,35 @@
           const rStore = data.research;
 
           // Resolve research topic from backend
-          const topicName = resData.topic || 'iPhone 15';
+          const topicName = resData.topic || 'Chủ đề nghiên cứu';
           const cleanTopic = topicName.length > 22 ? topicName.slice(0, 21) + '…' : topicName;
 
-          // Synchronize query input
-          rStore.query = topicName;
+          // If user initiated a new query and backend has NOT caught up yet, do not revert!
+          if (activeTopic && !topicName.toLowerCase().includes(activeTopic.toLowerCase()) && !activeTopic.toLowerCase().includes(topicName.toLowerCase())) {
+            console.log(`Backend topic ("${topicName}") does not match active query ("${activeTopic}"). Waiting for Agent.`);
+            return;
+          }
+
+          if (!activeTopic) {
+            activeTopic = topicName;
+          }
+
+          // Synchronize query input ONLY if not focused / typing
           const qInput = $('#query');
-          if (qInput && (!qInput.value || qInput.value.includes('lao động'))) {
+          if (qInput && document.activeElement !== qInput && (!qInput.value || qInput.value.includes('lao động') || qInput.value.trim() === '')) {
             qInput.value = topicName;
           }
 
-          // If rStore still has empty/dummy root, AI lao động nodes, or fake nodes (not ev_), wipe clean
+          // Check if topic changed compared to root node
+          const rootNode = rStore.nodes.find(n => n.id === 'r0');
+          const topicChanged = !rootNode || !rootNode.label.toLowerCase().includes(cleanTopic.toLowerCase());
           const hasDummyNodes = rStore.nodes.some(n => (!n.id.startsWith('ev_') && n.id !== 'r0') || n.label.includes('Chưa có') || n.label.includes('lao động') || n.label.includes('ILO') || n.label.includes('trợ cấp') || n.label.includes('MIT'));
-          if (hasDummyNodes || rStore.nodes.length <= 1) {
+
+          if (topicChanged || hasDummyNodes || rStore.nodes.length <= 1) {
             rStore.nodes = [{
               id: 'r0',
               label: cleanTopic,
+              fullLabel: topicName,
               type: 'claim',
               desc: `Chủ đề nghiên cứu trung tâm: ${topicName}`,
               x: 0,
@@ -277,8 +300,13 @@
               rStore.nodes.push({
                 id,
                 label: label.length > 22 ? label.slice(0, 21) + '…' : label,
+                fullLabel: label,
                 type: type,
                 desc: item.snippet || item.claim || item.content || item.summary || 'Dữ liệu được trích xuất từ workspace.',
+                source: item.source || '',
+                url: item.url || '',
+                confidence: item.confidence || '',
+                timestamp: item.timestamp || '',
                 x: Math.cos(angle) * dist,
                 y: Math.sin(angle) * dist,
                 vx: 0,
@@ -293,7 +321,9 @@
                   title: `${label.length > 24 ? label.slice(0, 23) + '…' : label}`,
                   sub: `${labels[type] || 'Bằng chứng'} · ${item.source || 'evidence-ledger.jsonl'}`,
                   time: 'Đã xác minh',
-                  type
+                  type,
+                  url: item.url || '',
+                  source: item.source || ''
                 });
               }
             }
@@ -529,18 +559,44 @@
         </button>
       `).join('');
     } else if (inspect === 'sources') {
-      const sources = s.nodes.filter((n) => n.type === (mode === 'research' ? 'source' : 'event'));
+      const sources = mode === 'research'
+        ? s.nodes.filter((n) => n.id !== 'r0' && (n.url || n.source || n.type === 'source'))
+        : s.nodes.filter((n) => n.type === 'event' || n.type === 'scenario');
+
       $('#panel-count').textContent = `${sources.length} ${mode === 'research' ? 'nguồn' : 'sự kiện'}`;
-      area.innerHTML = sources.map((n) => `
-        <button class="source-entry" data-select="${esc(n.id)}">
-          <span class="type-icon" style="color:${colors[n.type]}">${icon('file')}</span>
-          <span class="entry-body">
-            <div class="entry-title">${esc(n.label)}</div>
-            <div class="entry-sub">${esc(n.desc)}</div>
-          </span>
-          <span class="entry-time">#${esc(n.id)}</span>
-        </button>
-      `).join('');
+      if (sources.length === 0) {
+        area.innerHTML = '<div class="empty">Chưa có nguồn trích xuất nào.</div>';
+        return;
+      }
+      area.innerHTML = sources.map((n) => {
+        const domain = getDomain(n.url);
+        return `
+          <div class="source-card" data-select="${esc(n.id)}">
+            <div class="source-card-top">
+              <span class="type-icon" style="color:${colors[n.type]}">
+                ${icon(n.type === 'source' ? 'file' : n.type === 'scenario' ? 'branch' : 'network')}
+              </span>
+              <div class="source-card-meta">
+                <div class="source-card-title">${esc(n.fullLabel || n.label)}</div>
+                <div class="source-card-sub">
+                  <span class="source-card-tag" style="color:${colors[n.type]}">${esc(labels[n.type] || 'Nguồn')}</span>
+                  ${n.source ? `<span class="source-publisher-badge">${esc(n.source)}</span>` : ''}
+                </div>
+              </div>
+            </div>
+            <div class="source-card-desc">${esc(n.desc)}</div>
+            ${n.url ? `
+              <div class="source-link-action">
+                <a href="${esc(n.url)}" target="_blank" rel="noopener noreferrer" class="source-link-pill" onclick="event.stopPropagation()">
+                  <svg class="ico tiny"><use href="#i-expand"/></svg>
+                  <span class="source-link-domain">${esc(domain || 'Mở nguồn gốc')}</span>
+                  <span class="source-link-arrow">↗ Mở liên kết</span>
+                </a>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
     } else {
       const n = selectedNode();
       $('#panel-count').textContent = n ? `#${n.id}` : 'Chưa chọn';
@@ -549,14 +605,27 @@
         return;
       }
       const connected = neighbours(n.id).map((id) => s.nodes.find((v) => v.id === id)).filter(Boolean);
+      const domain = getDomain(n.url);
       area.innerHTML = `
         <div class="detail">
           <div class="detail-heading">
             <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${colors[n.type]}"></span>
-            <strong>${esc(n.label)}</strong>
+            <strong>${esc(n.fullLabel || n.label)}</strong>
             <span class="type-pill">${esc(labels[n.type])}</span>
           </div>
           <p>${esc(n.desc)}</p>
+          ${n.url ? `
+            <div class="detail-source-box">
+              <div class="detail-source-head">
+                <span class="detail-source-badge">NGUỒN THAM CHIẾU GỐC</span>
+                <strong>${esc(n.source || domain)}</strong>
+              </div>
+              <a href="${esc(n.url)}" target="_blank" rel="noopener noreferrer" class="detail-source-link">
+                <span class="link-url-text">${esc(n.url)}</span>
+                <span class="link-open-pill">↗ Mở liên kết</span>
+              </a>
+            </div>
+          ` : ''}
           <div class="meta">
             <span>Định danh <strong>${esc(n.id.toUpperCase())}</strong></span>
             <span>Liên kết <strong>${connected.length}</strong></span>
@@ -659,6 +728,7 @@
   }
 
   function startNewSession(topic) {
+    activeTopic = topic;
     const s = currentStore();
     s.query = topic;
     s.step = 0;
@@ -674,6 +744,7 @@
     s.nodes = [{
       id: rootId,
       label: cleanLabel,
+      fullLabel: topic,
       type: rootType,
       desc: rootDesc,
       x: 0,
@@ -729,8 +800,21 @@
       return;
     }
 
+    activeTopic = value;
+
     // Clear old sources and initialize clean graph with new central topic
     startNewSession(value);
+
+    // Notify backend about new session
+    try {
+      const payload = JSON.stringify({ topic: value, mode: mode });
+      const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload };
+      if (window.sidecar) {
+        window.sidecar.fetch('/api/new-session', opts);
+      } else {
+        fetch('/api/new-session', opts);
+      }
+    } catch (_) {}
 
     // Send command to Antigravity Agent via Sidecar SDK
     if (window.sidecar?.agent?.sendMessage) {

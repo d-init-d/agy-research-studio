@@ -1,49 +1,49 @@
 {
-  "topic": "iPhone 15 Toàn diện (Thông số, Giá bán, Thiết kế, Công nghệ, Khắc phục lỗi)",
+  "topic": "thông tin về xiaomi 13 ultra",
   "status": "completed",
-  "generatedAt": "2026-10-12T07:48:00Z",
+  "generatedAt": "2026-10-12T08:52:00Z",
   "categories": [
     {
-      "name": "Giá bán & Phát hành",
+      "name": "Giá bán & Ra mắt",
       "count": 1,
-      "summary": "Ra mắt 12/09/2023, giá từ $799 (15) và $899 (15 Plus)"
+      "summary": "Ra mắt 18/04/2023, giá từ 5.999 CNY (~20.5 triệu VNĐ) và châu Âu 1.499 EUR."
     },
     {
-      "name": "Cổng sạc & Kết nối",
-      "count": 1,
-      "summary": "Chuyển sang chuẩn USB-C tuân thủ quy định EU"
+      "name": "Hệ thống Camera Leica",
+      "count": 3,
+      "summary": "Cụm 4 camera 50MP, cảm biến 1-inch Sony IMX989, khẩu độ kép f/1.9-f/4.0, màu Leica Authentic/Vibrant."
     },
     {
-      "name": "Màn hình & Dynamic Island",
-      "count": 2,
-      "summary": "Super Retina XDR 2.000 nits, Dynamic Island trên toàn bộ dòng máy"
+      "name": "Màn hình hiển thị",
+      "count": 1,
+      "summary": "Tấm nền C7 LTPO AMOLED 2K (3200x1440), tần số 120Hz, độ sáng kỷ lục 2.600 nits."
     },
     {
-      "name": "Hệ thống Camera",
+      "name": "Hiệu năng & Tản nhiệt",
       "count": 1,
-      "summary": "Cảm biến 48MP, Telephoto 2x chất lượng quang học"
-    },
-    {
-      "name": "Hiệu năng Vi xử lý",
-      "count": 1,
-      "summary": "Apple A16 Bionic 4nm từ thế hệ Pro tiền nhiệm"
+      "summary": "Chip Snapdragon 8 Gen 2 4nm, tản nhiệt Loop LiquidCool độc quyền."
     },
     {
       "name": "Thiết kế & Hoàn thiện",
       "count": 1,
-      "summary": "Mặt lưng kính pha màu mờ, cạnh nhôm bo tròn êm tay"
+      "summary": "Lưng da sinh thái kháng khuẩn, khung nhôm unibody, chuẩn chống nước IP68."
     },
     {
-      "name": "Vấn đề kỹ thuật & Khắc phục",
+      "name": "Phụ kiện Nhiếp ảnh",
       "count": 1,
-      "summary": "Lỗi nhiệt phần mềm ban đầu được khắc phục hoàn toàn ở iOS 17.0.3"
+      "summary": "Xiaomi Photography Kit với báng cầm, nút chụp 2 nấc, ngàm filter 67mm."
     },
     {
-      "name": "An toàn & Vệ tinh",
+      "name": "Pin & Công nghệ Sạc",
       "count": 1,
-      "summary": "Emergency SOS qua vệ tinh và Roadside Assistance"
+      "summary": "Pin 5.000 mAh, chip Surge P2/G1, sạc có dây 90W và không dây 50W."
+    },
+    {
+      "name": "Thị trường & Khả năng tương thích",
+      "count": 1,
+      "summary": "Hàng xách tay tại VN (18-22 triệu VNĐ), cần cài ROM quốc tế để tối ưu dịch vụ Google."
     }
   ],
-  "totalEvidenceRecords": 9,
-  "confidenceScore": 0.98
+  "totalEvidenceRecords": 10,
+  "confidenceScore": 0.99
 }
