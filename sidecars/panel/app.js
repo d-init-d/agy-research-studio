@@ -100,6 +100,7 @@
   let autoTimer = null;
   let dependenciesState = { ready: true, dResearch: true, aleph: true };
   let activeTopic = '';
+  let activeConversationId = null;
 
   try {
     const saved = localStorage.getItem('agy-theme-v2');
@@ -232,10 +233,63 @@
   // ---------------------------------------------------------------------------
   // Workspace Data Integration (evidence-ledger.jsonl & timeline.json)
   // ---------------------------------------------------------------------------
+  function getActiveConversationId() {
+    return window.sidecar?.conversationId || (new URLSearchParams(window.location.search)).get('conversationId') || '';
+  }
+
+  async function getActiveWorkspaceUri() {
+    if (window.sidecar?.getWorkspaceUris) {
+      try {
+        const uris = await window.sidecar.getWorkspaceUris();
+        if (uris && uris.length > 0) return uris[0];
+      } catch (_) {}
+    }
+    return '';
+  }
+
+  function resetToEmptyState() {
+    data.research = buildStore('research', baseResearchNodes, baseResearchEdges);
+    data.aleph = buildStore('aleph', baseAlephNodes, baseAlephEdges);
+    activeTopic = '';
+    const qInput = $('#query');
+    if (qInput && document.activeElement !== qInput) {
+      qInput.value = '';
+    }
+    const sessionLabel = $('#session-label');
+    if (sessionLabel) {
+      sessionLabel.textContent = 'Hội thoại mới · Chưa có dữ liệu';
+    }
+    const badge = $('#workspace-badge');
+    if (badge) {
+      badge.textContent = 'READY';
+    }
+    panX = 0;
+    panY = 0;
+    scale = fitScale();
+    frames = 40;
+    updateUI();
+  }
+
   async function loadWorkspaceData() {
     try {
-      const workspaceUri = window.sidecar?.workspace?.uri || '';
-      const url = workspaceUri ? `/api/workspace-data?workspace=${encodeURIComponent(workspaceUri)}` : '/api/workspace-data';
+      const convId = getActiveConversationId();
+      const workspaceUri = await getActiveWorkspaceUri();
+
+      // Check if conversation has switched
+      if (activeConversationId !== null && convId && convId !== activeConversationId) {
+        console.log(`[Research Studio] Switch conversation from ${activeConversationId} to ${convId}`);
+        activeConversationId = convId;
+        resetToEmptyState();
+      } else if (activeConversationId === null && convId) {
+        activeConversationId = convId;
+      }
+
+      const params = new URLSearchParams();
+      if (convId) params.set('conversationId', convId);
+      if (workspaceUri) params.set('workspace', workspaceUri);
+      const queryStr = params.toString() ? `?${params.toString()}` : '';
+      const url = `/api/workspace-data${queryStr}`;
+
       const res = await (window.sidecar ? window.sidecar.fetch(url) : fetch(url));
       const resData = await res.json();
 
@@ -248,31 +302,27 @@
           const rStore = data.research;
 
           // Resolve research topic from backend
-          const topicName = resData.topic || 'Chủ đề nghiên cứu';
+          const topicName = resData.topic || (resData.coverage && resData.coverage.topic) || 'Chủ đề nghiên cứu';
           const cleanTopic = topicName.length > 22 ? topicName.slice(0, 21) + '…' : topicName;
 
-          // If user initiated a new research query and backend has NOT caught up yet, do not revert research graph!
           let skipResearchUpdate = false;
           if (mode === 'research' && activeTopic && !topicName.toLowerCase().includes(activeTopic.toLowerCase()) && !activeTopic.toLowerCase().includes(topicName.toLowerCase())) {
-            console.log(`Backend topic ("${topicName}") does not match active query ("${activeTopic}"). Waiting for Agent.`);
             skipResearchUpdate = true;
           }
 
           if (!skipResearchUpdate) {
-            if (!activeTopic && mode === 'research') {
-              activeTopic = topicName;
-            }
+            activeTopic = topicName;
 
             // Synchronize query input ONLY if in research mode and not focused / typing
             const qInput = $('#query');
-            if (mode === 'research' && qInput && document.activeElement !== qInput && (!qInput.value || qInput.value.includes('lao động') || qInput.value.trim() === '')) {
+            if (mode === 'research' && qInput && document.activeElement !== qInput && (!qInput.value || qInput.value.includes('Chưa có') || qInput.value.trim() === '')) {
               qInput.value = topicName;
             }
 
             // Check if topic changed compared to root node
             const rootNode = rStore.nodes.find(n => n.id === 'r0');
             const topicChanged = !rootNode || !rootNode.label.toLowerCase().includes(cleanTopic.toLowerCase());
-            const hasDummyNodes = rStore.nodes.some(n => (!n.id.startsWith('ev_') && n.id !== 'r0') || n.label.includes('Chưa có') || n.label.includes('lao động') || n.label.includes('ILO') || n.label.includes('trợ cấp') || n.label.includes('MIT'));
+            const hasDummyNodes = rStore.nodes.some(n => (!n.id.startsWith('ev_') && n.id !== 'r0') || n.label.includes('Chưa có'));
 
             if (topicChanged || hasDummyNodes || rStore.nodes.length <= 1) {
               rStore.nodes = [{
@@ -280,7 +330,7 @@
                 label: cleanTopic,
                 fullLabel: topicName,
                 type: 'claim',
-                desc: `Chủ đề nghiên cứu trung tâm: ${topicName}`,
+                desc: `Chủ đề nghiên cứu: ${topicName}`,
                 x: 0,
                 y: 0,
                 vx: 0,
@@ -293,21 +343,21 @@
             }
 
             resData.evidenceRecords.forEach((item, idx) => {
-              const id = 'ev_' + (item.id || idx);
+              const id = item.id || ('ev_' + idx);
               if (!rStore.nodes.some(n => n.id === id)) {
-                const label = item.title || item.source || item.url || `Bằng chứng #${idx + 1}`;
-                const type = item.type || (item.claim ? 'claim' : (item.issue ? 'issue' : 'source'));
+                const label = item.title || item.claim_id || item.source || item.url || `Bằng chứng #${idx + 1}`;
+                const type = item.type || 'claim';
                 const angle = (idx * 2.39996);
                 const dist = 75 + (idx % 3) * 35;
                 rStore.nodes.push({
                   id,
                   label: label.length > 22 ? label.slice(0, 21) + '…' : label,
-                  fullLabel: label,
+                  fullLabel: item.title || item.claim || label,
                   type: type,
-                  desc: item.snippet || item.claim || item.content || item.summary || 'Dữ liệu được trích xuất từ workspace.',
+                  desc: item.snippet || item.claim || item.content || item.summary || 'Dữ liệu được trích xuất từ cuộc trò chuyện.',
                   source: item.source || '',
                   url: item.url || '',
-                  confidence: item.confidence || '',
+                  confidence: item.confidence || 'Đã xác minh',
                   timestamp: item.timestamp || '',
                   x: Math.cos(angle) * dist,
                   y: Math.sin(angle) * dist,
@@ -322,7 +372,7 @@
                     id,
                     title: `${label.length > 24 ? label.slice(0, 23) + '…' : label}`,
                     sub: `${labels[type] || 'Bằng chứng'} · ${item.source || 'evidence-ledger.jsonl'}`,
-                    time: 'Đã xác minh',
+                    time: item.confidence ? `Độ tin cậy: ${item.confidence}` : 'Đã xác minh',
                     type,
                     url: item.url || '',
                     source: item.source || ''
@@ -335,7 +385,7 @@
             if (mode === 'research') {
               const sessionLabel = $('#session-label');
               if (sessionLabel) {
-                sessionLabel.textContent = `Workspace Synced · ${cleanTopic}`;
+                sessionLabel.textContent = `Hội thoại · ${cleanTopic}`;
               }
             }
           }
@@ -354,7 +404,7 @@
             }
             const sessionLabel = $('#session-label');
             if (sessionLabel) {
-              sessionLabel.textContent = `Workspace Synced · ${cleanAlephTopic}`;
+              sessionLabel.textContent = `Hội thoại · ${cleanAlephTopic}`;
             }
           }
 
@@ -441,9 +491,16 @@
 
         frames = 60;
         updateUI();
+      } else {
+        // No workspace data for this conversation: reset cleanly if showing stale nodes
+        const rStore = data.research;
+        const hasCustomNodes = rStore.nodes.some(n => n.id.startsWith('ev_') || (!n.id.startsWith('r0') && !n.seed));
+        if (hasCustomNodes) {
+          resetToEmptyState();
+        }
       }
     } catch (err) {
-      console.log('No workspace data file found, using built-in graph template.');
+      console.warn('Workspace sync notice:', err);
     }
   }
 
@@ -861,9 +918,11 @@
     // Clear old sources and initialize clean graph with new central topic
     startNewSession(value);
 
+    const convId = getActiveConversationId();
+
     // Notify backend about new session
     try {
-      const payload = JSON.stringify({ topic: value, mode: mode });
+      const payload = JSON.stringify({ topic: value, mode: mode, conversationId: convId });
       const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload };
       if (window.sidecar) {
         window.sidecar.fetch('/api/new-session', opts);
@@ -877,7 +936,7 @@
       const prompt = mode === 'research'
         ? `Nghiên cứu sâu (d-research) về chủ đề: "${value}". Cập nhật bằng chứng vào evidence-ledger.jsonl.`
         : `Chạy mô phỏng kịch bản nhân quả (aleph-skill) cho điểm can thiệp: "${value}". Cập nhật timeline.json.`;
-      window.sidecar.agent.sendMessage(prompt);
+      window.sidecar.agent.sendMessage(prompt, convId);
       showToast(`Đã dọn nguồn cũ & gửi yêu cầu ${mode === 'research' ? 'D Research' : 'Aleph'} tới Agent`);
     } else {
       showToast(`Đã dọn nguồn cũ và khởi tạo đồ thị ${mode === 'research' ? 'D Research' : 'Aleph'}`);
@@ -1151,9 +1210,18 @@
       if (theme === 'system') applyTheme();
     });
 
+    // Subscribe to workspace changes via Sidecar SDK
+    if (window.sidecar?.onWorkspaceChange) {
+      window.sidecar.onWorkspaceChange(() => {
+        loadWorkspaceData();
+      });
+    }
+
     window.addEventListener('message', (event) => {
       if (event.data?.type === 'theme-change' && theme === 'system') {
         setTimeout(applyTheme, 40);
+      } else if (event.data?.type === 'workspace-change' || event.data?.type === 'conversation-change') {
+        loadWorkspaceData();
       }
     });
 
@@ -1185,6 +1253,6 @@
     if (currentStore().live) {
       loadWorkspaceData();
     }
-  }, 3500);
+  }, 2500);
 
 })();
