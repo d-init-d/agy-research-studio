@@ -9,17 +9,17 @@
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --bg: var(--background, #161719);
-  --surface: var(--card, #1c1e21);
-  --inset: var(--popover, #191b1d);
-  --raised: var(--secondary, #232529);
-  --hover: var(--accent-hover, #2b2d32);
-  --border: var(--border, #34363b);
-  --soft: var(--muted-border, #292b30);
-  --text: var(--foreground, #e9eaed);
-  --sub: var(--muted-foreground, #a8abb2);
-  --muted: var(--muted-foreground, #7c818a);
-  --accent: var(--primary, #a8bafa);
+  --bg: #161719;
+  --surface: #1c1e21;
+  --inset: #212328;
+  --raised: #282a2e;
+  --hover: #2e3036;
+  --border: #34363b;
+  --soft: #292b30;
+  --text: #e9eaed;
+  --sub: #a8abb2;
+  --muted: #7c818a;
+  --accent: #a8bafa;
   --accent-wash: #283146;
   --source: #80aee8;
   --claim: #b7a3ed;
@@ -32,33 +32,39 @@ html[data-theme="dark"] {
   --canvas: #191b1e;
   --grid: #ffffff08;
   --shadow: 0 20px 65px #00000060;
+  --input-bg: #212328;
+  --input-text: #f0f1f3;
+  --input-border: #34363b;
 }
 
 html[data-theme="light"] {
   color-scheme: light;
-  --bg: var(--background, #f1f2f4);
-  --surface: var(--card, #ffffff);
-  --inset: var(--popover, #fbfbfc);
-  --raised: var(--secondary, #f2f3f5);
-  --hover: var(--accent-hover, #e9ecf0);
-  --border: var(--border, #e0e3e8);
-  --soft: var(--muted-border, #eceef1);
-  --text: var(--foreground, #262b32);
-  --sub: var(--muted-foreground, #5f6670);
-  --muted: var(--muted-foreground, #8b9099);
-  --accent: var(--primary, #486fab);
+  --bg: #f8f9fa;
+  --surface: #ffffff;
+  --inset: #f1f2f4;
+  --raised: #f2f3f5;
+  --hover: #e9ecf0;
+  --border: #e0e3e8;
+  --soft: #eceef1;
+  --text: #1a1d21;
+  --sub: #5f6670;
+  --muted: #8b9099;
+  --accent: #3b66a3;
   --accent-wash: #e8effb;
-  --source: #557db5;
-  --claim: #896eb5;
-  --issue: #a87b44;
-  --event: #b08445;
-  --actor: #8276b0;
-  --scenario: #4d9878;
-  --good: #589778;
-  --bad: #b96267;
-  --canvas: #fdfdfe;
+  --source: #4a77b8;
+  --claim: #7e60b2;
+  --issue: #aa7a38;
+  --event: #b2823a;
+  --actor: #796aa9;
+  --scenario: #3d8f6d;
+  --good: #458e6d;
+  --bad: #ba575d;
+  --canvas: #f8f9fa;
   --grid: #14192309;
   --shadow: 0 20px 70px #1b283524;
+  --input-bg: #f4f5f7;
+  --input-text: #1a1d21;
+  --input-border: #d0d4dc;
 }
 
 * {
@@ -308,17 +314,24 @@ svg.ico {
   flex: 1;
   min-width: 0;
   padding: 0 10px;
-  border: 1px solid var(--border);
-  background: var(--inset);
-  color: var(--text);
+  border: 1px solid var(--input-border, var(--border));
+  background: var(--input-bg, var(--inset));
+  color: var(--input-text, var(--text));
   border-radius: 7px;
   font-size: 11px;
   outline: none;
-  transition: border-color var(--easing);
+  transition: border-color var(--easing), background var(--easing);
 }
 
 .query:focus {
   border-color: var(--accent);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.query::placeholder {
+  color: var(--sub);
+  opacity: 0.75;
 }
 
 .run {

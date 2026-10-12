@@ -120,7 +120,7 @@
   let mode = 'research';
   let inspect = 'feed';
   let filter = 'all';
-  let theme = 'dark';
+  let theme = 'system';
   let width = 360;
   let height = 310;
   let scale = 0.85;
@@ -131,12 +131,10 @@
   let recentNode = '';
   let toastTimeout = null;
   let autoTimer = null;
-
-  // Real skills availability
   let dependenciesState = { ready: true, dResearch: true, aleph: true };
 
   try {
-    theme = localStorage.getItem('agy-theme') || 'dark';
+    theme = localStorage.getItem('agy-theme') || 'system';
   } catch (_) {}
 
   const currentStore = () => data[mode];
@@ -145,15 +143,35 @@
   // ---------------------------------------------------------------------------
   // Theme Management
   // ---------------------------------------------------------------------------
+  function detectHostTheme() {
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--background').trim();
+    if (bg) {
+      if (bg.startsWith('#') && bg.length >= 7) {
+        const r = parseInt(bg.slice(1, 3), 16);
+        const g = parseInt(bg.slice(3, 5), 16);
+        const b = parseInt(bg.slice(5, 7), 16);
+        return (0.299 * r + 0.587 * g + 0.114 * b) < 135 ? 'dark' : 'light';
+      }
+      if (bg.startsWith('rgb')) {
+        const m = bg.match(/\d+/g);
+        if (m && m.length >= 3) {
+          const lum = 0.299 * (+m[0]) + 0.587 * (+m[1]) + 0.114 * (+m[2]);
+          return lum < 135 ? 'dark' : 'light';
+        }
+      }
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
   function applyTheme() {
-    const actual = theme === 'system'
-      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : theme;
+    const actual = theme === 'system' ? detectHostTheme() : theme;
 
     document.documentElement.dataset.theme = actual;
     const themeBtn = $('#theme-button');
     if (themeBtn) {
       themeBtn.innerHTML = icon(actual === 'light' ? 'sun' : 'moon', 'ico');
+      const label = theme === 'system' ? `Hệ thống (${actual === 'light' ? 'Sáng' : 'Tối'})` : (theme === 'dark' ? 'Tối' : 'Sáng');
+      themeBtn.title = `Giao diện: ${label}`;
     }
 
     $$('[data-theme-choice]').forEach((b) => {
@@ -163,6 +181,9 @@
     try {
       localStorage.setItem('agy-theme', theme);
     } catch (_) {}
+
+    frames = 15;
+    renderGraph();
   }
 
   function showToast(text) {
@@ -256,27 +277,62 @@
         // Load evidence records into research graph
         if (resData.evidenceRecords && resData.evidenceRecords.length > 0) {
           const rStore = data.research;
+
+          // If rStore still contains old template dummy nodes, wipe them!
+          const hasOldDummyNodes = rStore.nodes.some(n => n.id === 'r1' && n.label.includes('ILO'));
+          if (hasOldDummyNodes) {
+            const rootLabel = rStore.query || 'Chủ đề nghiên cứu';
+            rStore.nodes = [{
+              id: 'r0',
+              label: rootLabel.length > 22 ? rootLabel.slice(0, 21) + '…' : rootLabel,
+              type: 'claim',
+              desc: `Chủ đề nghiên cứu trung tâm: ${rStore.query || 'Workspace Data'}`,
+              x: 0,
+              y: 0,
+              vx: 0,
+              vy: 0,
+              seed: true,
+              number: 1
+            }];
+            rStore.links = [];
+            rStore.feed = [];
+          }
+
           resData.evidenceRecords.forEach((item, idx) => {
-            const id = 'ev_' + idx;
+            const id = 'ev_' + (item.id || idx);
             if (!rStore.nodes.some(n => n.id === id)) {
               const label = item.title || item.source || item.url || `Bằng chứng #${idx + 1}`;
+              const type = item.type || (item.claim ? 'claim' : (item.issue ? 'issue' : 'source'));
+              const angle = (idx * 2.39996);
+              const dist = 75 + (idx % 3) * 35;
               rStore.nodes.push({
                 id,
-                label: label.length > 20 ? label.slice(0, 19) + '…' : label,
-                type: 'source',
-                desc: item.snippet || item.claim || item.content || 'Dữ liệu được trích xuất từ workspace.',
-                x: (Math.random() - 0.5) * 200,
-                y: (Math.random() - 0.5) * 160,
+                label: label.length > 22 ? label.slice(0, 21) + '…' : label,
+                type: type,
+                desc: item.snippet || item.claim || item.content || item.summary || 'Dữ liệu được trích xuất từ workspace.',
+                x: Math.cos(angle) * dist,
+                y: Math.sin(angle) * dist,
                 vx: 0,
                 vy: 0,
                 seed: false
               });
               rStore.links.push({ a: id, b: 'r0' });
+
+              if (!rStore.feed.some(f => f.id === id)) {
+                rStore.feed.unshift({
+                  id,
+                  title: `Nguồn mới · ${label.length > 24 ? label.slice(0, 23) + '…' : label}`,
+                  sub: `${labels[type] || 'Bằng chứng'} · ${item.source || 'evidence-ledger.jsonl'}`,
+                  time: 'Vừa xong',
+                  type
+                });
+              }
             }
           });
+          rStore.feed = rStore.feed.slice(0, 30);
         }
 
-        frames = 50;
+        frames = 60;
         updateUI();
       }
     } catch (err) {
@@ -570,6 +626,64 @@
     }, 1250);
   }
 
+  function startNewSession(topic) {
+    const s = currentStore();
+    s.query = topic;
+    s.step = 0;
+
+    const cleanLabel = topic.length > 22 ? topic.slice(0, 21) + '…' : topic;
+    const rootId = mode === 'research' ? 'r0' : 'a0';
+    const rootType = mode === 'research' ? 'claim' : 'event';
+    const rootDesc = mode === 'research'
+      ? `Chủ đề nghiên cứu trung tâm: ${topic}`
+      : `Điểm can thiệp ban đầu: ${topic}`;
+
+    // Clear old sources & links completely
+    s.nodes = [{
+      id: rootId,
+      label: cleanLabel,
+      type: rootType,
+      desc: rootDesc,
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      seed: true,
+      number: 1
+    }];
+    s.links = [];
+
+    // Reset activity feed
+    s.feed = [{
+      id: rootId,
+      title: mode === 'research' ? `Khởi tạo: ${cleanLabel}` : `Điểm can thiệp: ${cleanLabel}`,
+      sub: `${labels[rootType]} · Bắt đầu thu thập`,
+      time: 'Vừa xong',
+      type: rootType
+    }];
+
+    s.selected = rootId;
+    panX = 0;
+    panY = 0;
+    scale = fitScale();
+    frames = 70;
+
+    const sessionLabel = $('#session-label');
+    if (sessionLabel) {
+      sessionLabel.textContent = `Phiên mới · ${cleanLabel}`;
+    }
+
+    updateUI();
+  }
+
+  function resetCurrentGraph() {
+    const s = currentStore();
+    const queryInput = $('#query');
+    const topic = (queryInput && queryInput.value.trim()) || s.query || (mode === 'research' ? 'Nghiên cứu mới' : 'Mô phỏng mới');
+    startNewSession(topic);
+    showToast('Đã làm mới đồ thị & dọn sạch các nguồn cũ');
+  }
+
   function onRunQuery() {
     if (!dependenciesState.ready) {
       $('#gate').hidden = false;
@@ -583,8 +697,8 @@
       return;
     }
 
-    currentStore().query = value;
-    addDataNode();
+    // Clear old sources and initialize clean graph with new central topic
+    startNewSession(value);
 
     // Send command to Antigravity Agent via Sidecar SDK
     if (window.sidecar?.agent?.sendMessage) {
@@ -592,9 +706,9 @@
         ? `Nghiên cứu sâu (d-research) về chủ đề: "${value}". Cập nhật bằng chứng vào evidence-ledger.jsonl.`
         : `Chạy mô phỏng kịch bản nhân quả (aleph-skill) cho điểm can thiệp: "${value}". Cập nhật timeline.json.`;
       window.sidecar.agent.sendMessage(prompt);
-      showToast(`Đã gửi yêu cầu ${mode === 'research' ? 'D Research' : 'Aleph'} tới Agent`);
+      showToast(`Đã dọn nguồn cũ & gửi yêu cầu ${mode === 'research' ? 'D Research' : 'Aleph'} tới Agent`);
     } else {
-      showToast(`Đã cập nhật đồ thị ${mode === 'research' ? 'D Research' : 'Aleph'}`);
+      showToast(`Đã dọn nguồn cũ và khởi tạo đồ thị ${mode === 'research' ? 'D Research' : 'Aleph'}`);
     }
   }
 
@@ -854,9 +968,21 @@
     // Resize observer
     new ResizeObserver(resizeGraph).observe($('#graph'));
 
-    // OS Theme change
+    // Reset graph button
+    const resetBtn = $('#reset-graph');
+    if (resetBtn) {
+      resetBtn.onclick = resetCurrentGraph;
+    }
+
+    // OS & Host Theme changes
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
       if (theme === 'system') applyTheme();
+    });
+
+    window.addEventListener('message', (event) => {
+      if (event.data?.type === 'theme-change' && theme === 'system') {
+        setTimeout(applyTheme, 40);
+      }
     });
 
     // ESC key closes modals

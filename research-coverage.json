@@ -1,0 +1,49 @@
+{
+  "topic": "iPhone 15 Toàn diện (Thông số, Giá bán, Thiết kế, Công nghệ, Khắc phục lỗi)",
+  "status": "completed",
+  "generatedAt": "2026-10-12T07:48:00Z",
+  "categories": [
+    {
+      "name": "Giá bán & Phát hành",
+      "count": 1,
+      "summary": "Ra mắt 12/09/2023, giá từ $799 (15) và $899 (15 Plus)"
+    },
+    {
+      "name": "Cổng sạc & Kết nối",
+      "count": 1,
+      "summary": "Chuyển sang chuẩn USB-C tuân thủ quy định EU"
+    },
+    {
+      "name": "Màn hình & Dynamic Island",
+      "count": 2,
+      "summary": "Super Retina XDR 2.000 nits, Dynamic Island trên toàn bộ dòng máy"
+    },
+    {
+      "name": "Hệ thống Camera",
+      "count": 1,
+      "summary": "Cảm biến 48MP, Telephoto 2x chất lượng quang học"
+    },
+    {
+      "name": "Hiệu năng Vi xử lý",
+      "count": 1,
+      "summary": "Apple A16 Bionic 4nm từ thế hệ Pro tiền nhiệm"
+    },
+    {
+      "name": "Thiết kế & Hoàn thiện",
+      "count": 1,
+      "summary": "Mặt lưng kính pha màu mờ, cạnh nhôm bo tròn êm tay"
+    },
+    {
+      "name": "Vấn đề kỹ thuật & Khắc phục",
+      "count": 1,
+      "summary": "Lỗi nhiệt phần mềm ban đầu được khắc phục hoàn toàn ở iOS 17.0.3"
+    },
+    {
+      "name": "An toàn & Vệ tinh",
+      "count": 1,
+      "summary": "Emergency SOS qua vệ tinh và Roadside Assistance"
+    }
+  ],
+  "totalEvidenceRecords": 9,
+  "confidenceScore": 0.98
+}
