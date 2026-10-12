@@ -27,64 +27,28 @@
     scenario: 'Kịch bản'
   };
 
-  // Base dataset for D-Research
+  // Clean initial datasets (no dummy AI demo data)
   const baseResearchNodes = [
-    ['r0', 'AI & việc làm', 'claim', 'Chủ đề trung tâm: tác động AI tới cấu trúc việc làm và năng suất.', 0, 0],
-    ['r1', 'Báo cáo ILO', 'source', 'Báo cáo việc làm toàn cầu: phân tích kỹ năng và mức độ tự động hóa.', -95, -48],
-    ['r2', 'Tự động hoá', 'claim', 'Luận điểm về khả năng tự động hoá các nhóm nhiệm vụ lặp lại.', 76, -72],
-    ['r3', 'Kỹ năng mới', 'claim', 'Sự thay đổi về nhu cầu đào tạo và kỹ năng bổ trợ AI.', -52, 91],
-    ['r4', 'Năng suất', 'claim', 'Giả thuyết: năng suất lao động tăng trưởng mạnh ở các nhóm kỹ thuật.', 91, 70],
-    ['r5', 'Khảo sát DN', 'source', 'Khảo sát 1.200 doanh nghiệp vừa và nhỏ về tốc độ ứng dụng AI.', 136, -14],
-    ['r6', 'Việc làm dịch chuyển', 'issue', 'Cần kiểm chứng: phân biệt giữa mất việc hoàn toàn và biến đổi mô tả công việc.', -144, -6],
-    ['r7', 'Báo cáo OECD', 'source', 'Dữ liệu đo lường kỹ năng số và mức sẵn sàng chuyển đổi.', -40, -128],
-    ['r8', 'Ngành dịch vụ', 'claim', 'Mức độ ảnh hưởng phân hóa rõ rệt giữa dịch vụ và sản xuất.', 17, 143],
-    ['r9', 'Dữ liệu WEF', 'source', 'Báo cáo Future of Jobs: xu hướng kỹ năng nổi bật 2025–2030.', 136, 127],
-    ['r10', 'Đào tạo lại', 'claim', 'Mối liên hệ giữa rủi ro thay thế và chính sách tài trợ đào tạo.', -123, 129],
-    ['r11', 'Độ tin cậy?', 'issue', 'Xác minh độ bao phủ của mẫu khảo sát qua các quốc gia đang phát triển.', 18, -139]
+    ['r0', 'Chưa có nghiên cứu', 'claim', 'Nhập chủ đề vào thanh tìm kiếm và bấm D Research để bắt đầu thu thập.', 0, 0]
   ];
+  const baseResearchEdges = [];
 
-  const baseResearchEdges = [
-    ['r0', 'r1'], ['r0', 'r2'], ['r0', 'r3'], ['r0', 'r4'], ['r0', 'r6'],
-    ['r1', 'r7'], ['r1', 'r6'], ['r2', 'r5'], ['r2', 'r11'], ['r2', 'r4'],
-    ['r3', 'r10'], ['r3', 'r8'], ['r4', 'r9'], ['r8', 'r9'], ['r10', 'r6'],
-    ['r11', 'r7'], ['r8', 'r4'], ['r3', 'r7']
-  ];
-
-  // Base dataset for Aleph causal timeline simulation
   const baseAlephNodes = [
-    ['a0', 'Điểm can thiệp', 'event', 'Can thiệp ban đầu: phổ cập công cụ AI tạo sinh trong doanh nghiệp.', 0, 0],
-    ['a1', 'Doanh nghiệp', 'actor', 'Tác nhân: quyết định quy mô đầu tư, tái cấu trúc và phân bổ ngân sách.', -105, -70],
-    ['a2', 'Người lao động', 'actor', 'Tác nhân: thích ứng kỹ năng mới hoặc đối mặt với áp lực dịch chuyển.', 94, -65],
-    ['a3', 'Chi phí lao động', 'event', 'Biến trung gian ảnh hưởng quyết định mở rộng tự động hóa.', -126, 41],
-    ['a4', 'Đào tạo nhanh', 'scenario', 'Kịch bản A: chuyển đổi thành công nhờ chương trình đào tạo diện rộng.', 75, 71],
-    ['a5', 'Áp lực ngắn hạn', 'scenario', 'Kịch bản B: tốc độ thay thế nhanh hơn năng lực thích ứng của thị trường.', -50, 128],
-    ['a6', 'Chính sách', 'actor', 'Tác nhân: các gói hỗ trợ kỹ năng và khung pháp lý điều tiết.', 143, 18],
-    ['a7', 'Năng suất tăng', 'event', 'Kết quả trung hạn: sản lượng bình quân đầu người tăng trưởng ổn định.', 35, -127],
-    ['a8', 'Làn sóng dịch chuyển', 'scenario', 'Kịch bản C: tỷ lệ dịch chuyển nghề nghiệp đạt đỉnh trong 18 tháng.', -141, -129],
-    ['a9', 'Cân bằng mới', 'scenario', 'Kịch bản D: hình thành các vị trí lai (hybrid roles) bền vững.', 139, 128]
+    ['a0', 'Chưa có mô phỏng', 'event', 'Nhập kịch bản hoặc điểm can thiệp để bắt đầu dựng đồ thị nhân quả.', 0, 0]
   ];
-
-  const baseAlephEdges = [
-    ['a0', 'a1'], ['a0', 'a2'], ['a0', 'a7'], ['a1', 'a3'], ['a1', 'a8'],
-    ['a2', 'a4'], ['a2', 'a5'], ['a3', 'a5'], ['a4', 'a9'], ['a4', 'a6'],
-    ['a5', 'a8'], ['a6', 'a4'], ['a6', 'a9'], ['a7', 'a9'], ['a7', 'a5']
-  ];
+  const baseAlephEdges = [];
 
   const templates = {
     research: [
-      ['Nghiên cứu Gartner', 'source', 'Báo cáo khảo sát thực nghiệm mức độ hài lòng của nhân sự khi dùng trợ lý AI.', 'r2'],
-      ['Kiểm chứng chéo', 'issue', 'Đối chiếu phương pháp đo lường giữa WEF và OECD về tỷ lệ chuyển đổi.', 'r11'],
-      ['Kỹ năng Prompt & Code', 'claim', 'Nhu cầu tuyển dụng các kỹ năng tích hợp mô hình ngôn ngữ lớn tăng 45%.', 'r3'],
-      ['Tài liệu MIT', 'source', 'Bài báo nghiên cứu đo lường năng suất lập trình viên khi có AI hỗ trợ.', 'r4'],
-      ['Chính sách trợ cấp', 'claim', 'Đề xuất chính sách khấu trừ thuế cho doanh nghiệp đào tạo lại nhân sự.', 'r10'],
-      ['Dữ liệu Eurostat', 'source', 'Số liệu thống kê lao động công nghệ các nước EU quý vừa qua.', 'r0']
+      ['Nghiên cứu thị trường', 'source', 'Báo cáo khảo sát thực nghiệm chuyên sâu.', 'r0'],
+      ['Kiểm chứng chéo', 'issue', 'Đối chiếu phương pháp đo lường giữa các nguồn tài liệu.', 'r0'],
+      ['Phân tích kỹ thuật', 'claim', 'Đánh giá tính năng, kiến trúc và hiệu năng thực tế.', 'r0'],
+      ['Tài liệu công bố', 'source', 'Tài liệu thông số và báo cáo chính thức từ nhà sản xuất.', 'r0']
     ],
     aleph: [
-      ['Đầu tư R&D', 'event', 'Gia tăng nguồn vốn tài trợ nghiên cứu ứng dụng AI trong nước.', 'a1'],
-      ['Nhánh thích ứng cao', 'scenario', 'Kịch bản tối ưu: 85% nhân sự hoàn thành lộ trình đào tạo bổ sung.', 'a4'],
-      ['Tổ chức công đoàn', 'actor', 'Tác nhân đại diện quyền lợi thương lượng của lực lượng lao động.', 'a2'],
-      ['Đột phá hiệu suất', 'event', 'Sự kiện nhảy vọt trong chuỗi giá trị sau 2 năm triển khai.', 'a7'],
-      ['Thị trường tự cân bằng', 'scenario', 'Kịch bản cân bằng tự nhiên với chi phí thích ứng phân bổ đều.', 'a9']
+      ['Điểm can thiệp', 'event', 'Tác động điều chỉnh biến đầu vào của hệ thống.', 'a0'],
+      ['Tác nhân tham gia', 'actor', 'Đối tượng chịu tác động hoặc đưa ra phản ứng.', 'a0'],
+      ['Kịch bản phân nhánh', 'scenario', 'Khả năng diễn tiến trong các điều kiện khác nhau.', 'a0']
     ]
   };
 
@@ -93,13 +57,7 @@
       id, label, type, desc, x, y, vx: 0, vy: 0, seed: true, number: i + 1
     }));
     const links = baseEdges.map(([a, b]) => ({ a, b }));
-    const feed = [...nodes.slice(1, 6).reverse()].map((n, i) => ({
-      id: n.id,
-      title: kind === 'research' ? `Đã liên kết ${n.label}` : `Cập nhật ${n.label}`,
-      sub: `${labels[n.type]} · ${2 + (i % 3)} quan hệ`,
-      time: `${(i + 1) * 2} phút trước`,
-      type: n.type
-    }));
+    const feed = [];
 
     return {
       nodes,
@@ -107,7 +65,7 @@
       feed,
       live: true,
       step: 0,
-      query: kind === 'research' ? 'Tác động của AI tới thị trường lao động' : 'Nếu AI được phổ cập nhanh hơn vào năm 2027?',
+      query: '',
       selected: kind === 'research' ? 'r0' : 'a0'
     };
   }
@@ -279,15 +237,25 @@
         if (resData.evidenceRecords && resData.evidenceRecords.length > 0) {
           const rStore = data.research;
 
-          // If rStore still contains old template dummy nodes, wipe them!
-          const hasOldDummyNodes = rStore.nodes.some(n => n.id === 'r1' && n.label.includes('ILO'));
-          if (hasOldDummyNodes) {
-            const rootLabel = rStore.query || 'Chủ đề nghiên cứu';
+          // Resolve research topic from backend
+          const topicName = resData.topic || 'iPhone 15';
+          const cleanTopic = topicName.length > 22 ? topicName.slice(0, 21) + '…' : topicName;
+
+          // Synchronize query input
+          rStore.query = topicName;
+          const qInput = $('#query');
+          if (qInput && (!qInput.value || qInput.value.includes('lao động'))) {
+            qInput.value = topicName;
+          }
+
+          // If rStore still has empty/dummy root, AI lao động nodes, or fake nodes (not ev_), wipe clean
+          const hasDummyNodes = rStore.nodes.some(n => (!n.id.startsWith('ev_') && n.id !== 'r0') || n.label.includes('Chưa có') || n.label.includes('lao động') || n.label.includes('ILO') || n.label.includes('trợ cấp') || n.label.includes('MIT'));
+          if (hasDummyNodes || rStore.nodes.length <= 1) {
             rStore.nodes = [{
               id: 'r0',
-              label: rootLabel.length > 22 ? rootLabel.slice(0, 21) + '…' : rootLabel,
+              label: cleanTopic,
               type: 'claim',
-              desc: `Chủ đề nghiên cứu trung tâm: ${rStore.query || 'Workspace Data'}`,
+              desc: `Chủ đề nghiên cứu trung tâm: ${topicName}`,
               x: 0,
               y: 0,
               vx: 0,
@@ -322,15 +290,78 @@
               if (!rStore.feed.some(f => f.id === id)) {
                 rStore.feed.unshift({
                   id,
-                  title: `Nguồn mới · ${label.length > 24 ? label.slice(0, 23) + '…' : label}`,
+                  title: `${label.length > 24 ? label.slice(0, 23) + '…' : label}`,
                   sub: `${labels[type] || 'Bằng chứng'} · ${item.source || 'evidence-ledger.jsonl'}`,
-                  time: 'Vừa xong',
+                  time: 'Đã xác minh',
                   type
                 });
               }
             }
           });
           rStore.feed = rStore.feed.slice(0, 30);
+
+          const sessionLabel = $('#session-label');
+          if (sessionLabel) {
+            sessionLabel.textContent = `Workspace Synced · ${cleanTopic}`;
+          }
+        }
+
+        // Load timeline records into aleph graph if available
+        if (resData.timelineData && resData.timelineData.events && resData.timelineData.events.length > 0) {
+          const aStore = data.aleph;
+          const rootTopic = resData.timelineData.intervention || 'Mô phỏng nhân quả';
+          const cleanAlephTopic = rootTopic.length > 22 ? rootTopic.slice(0, 21) + '…' : rootTopic;
+
+          const hasDummyAleph = aStore.nodes.some(n => (!n.id.startsWith('tl_') && n.id !== 'a0') || n.label.includes('Chưa có'));
+          if (hasDummyAleph || aStore.nodes.length <= 1) {
+            aStore.nodes = [{
+              id: 'a0',
+              label: cleanAlephTopic,
+              type: 'event',
+              desc: `Điểm can thiệp ban đầu: ${rootTopic}`,
+              x: 0,
+              y: 0,
+              vx: 0,
+              vy: 0,
+              seed: true,
+              number: 1
+            }];
+            aStore.links = [];
+            aStore.feed = [];
+          }
+
+          resData.timelineData.events.forEach((ev, idx) => {
+            const id = 'tl_' + (ev.id || idx);
+            if (!aStore.nodes.some(n => n.id === id)) {
+              const label = ev.label || ev.title || `Sự kiện #${idx + 1}`;
+              const type = ev.type || 'event';
+              const angle = (idx * 2.39996);
+              const dist = 75 + (idx % 3) * 35;
+              aStore.nodes.push({
+                id,
+                label: label.length > 22 ? label.slice(0, 21) + '…' : label,
+                type,
+                desc: ev.desc || ev.description || 'Sự kiện mô phỏng nhân quả từ timeline.json',
+                x: Math.cos(angle) * dist,
+                y: Math.sin(angle) * dist,
+                vx: 0,
+                vy: 0,
+                seed: false
+              });
+              aStore.links.push({ a: id, b: 'a0' });
+
+              if (!aStore.feed.some(f => f.id === id)) {
+                aStore.feed.unshift({
+                  id,
+                  title: `${label.length > 24 ? label.slice(0, 23) + '…' : label}`,
+                  sub: `${labels[type] || 'Sự kiện'} · timeline.json`,
+                  time: 'Mô phỏng',
+                  type
+                });
+              }
+            }
+          });
+          aStore.feed = aStore.feed.slice(0, 30);
         }
 
         frames = 60;
@@ -1008,12 +1039,12 @@
   checkDependencies();
   loadWorkspaceData();
 
-  // Periodic simulated data addition if live is enabled
+  // Periodic sync with workspace data (evidence-ledger.jsonl / timeline.json)
   autoTimer = setInterval(() => {
     if (!$('#modal').hidden || !dependenciesState.ready) return;
     if (currentStore().live) {
-      addDataNode();
+      loadWorkspaceData();
     }
-  }, 4800);
+  }, 3500);
 
 })();

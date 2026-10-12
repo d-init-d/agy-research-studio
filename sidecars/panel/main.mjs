@@ -117,6 +117,7 @@ app.api('/api/workspace-data', (params) => {
 
   let ledgerRows = [];
   let timelineData = null;
+  let coverageData = null;
   let foundDir = null;
 
   for (const dir of candidateDirs) {
@@ -149,7 +150,16 @@ app.api('/api/workspace-data', (params) => {
       }
     }
 
-    if (ledgerRows.length > 0 || timelineData) {
+    const coverageFile = join(dir, 'research-coverage.json');
+    if (existsSync(coverageFile)) {
+      try {
+        coverageData = JSON.parse(readFileSync(coverageFile, 'utf8'));
+      } catch (err) {
+        console.error('Error reading research-coverage.json:', err);
+      }
+    }
+
+    if (ledgerRows.length > 0 || timelineData || coverageData) {
       break;
     }
   }
@@ -158,7 +168,9 @@ app.api('/api/workspace-data', (params) => {
     hasWorkspaceData: ledgerRows.length > 0 || timelineData !== null,
     workspaceDir: foundDir,
     evidenceRecords: ledgerRows,
-    timelineData: timelineData
+    timelineData: timelineData,
+    topic: coverageData?.topic || (ledgerRows.length > 0 ? 'iPhone 15' : null),
+    coverage: coverageData
   };
 }, 'GET');
 
