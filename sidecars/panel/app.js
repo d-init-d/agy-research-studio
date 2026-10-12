@@ -251,88 +251,93 @@
           const topicName = resData.topic || 'Chủ đề nghiên cứu';
           const cleanTopic = topicName.length > 22 ? topicName.slice(0, 21) + '…' : topicName;
 
-          // If user initiated a new query and backend has NOT caught up yet, do not revert!
-          if (activeTopic && !topicName.toLowerCase().includes(activeTopic.toLowerCase()) && !activeTopic.toLowerCase().includes(topicName.toLowerCase())) {
+          // If user initiated a new research query and backend has NOT caught up yet, do not revert research graph!
+          let skipResearchUpdate = false;
+          if (mode === 'research' && activeTopic && !topicName.toLowerCase().includes(activeTopic.toLowerCase()) && !activeTopic.toLowerCase().includes(topicName.toLowerCase())) {
             console.log(`Backend topic ("${topicName}") does not match active query ("${activeTopic}"). Waiting for Agent.`);
-            return;
+            skipResearchUpdate = true;
           }
 
-          if (!activeTopic) {
-            activeTopic = topicName;
-          }
+          if (!skipResearchUpdate) {
+            if (!activeTopic && mode === 'research') {
+              activeTopic = topicName;
+            }
 
-          // Synchronize query input ONLY if not focused / typing
-          const qInput = $('#query');
-          if (qInput && document.activeElement !== qInput && (!qInput.value || qInput.value.includes('lao động') || qInput.value.trim() === '')) {
-            qInput.value = topicName;
-          }
+            // Synchronize query input ONLY if in research mode and not focused / typing
+            const qInput = $('#query');
+            if (mode === 'research' && qInput && document.activeElement !== qInput && (!qInput.value || qInput.value.includes('lao động') || qInput.value.trim() === '')) {
+              qInput.value = topicName;
+            }
 
-          // Check if topic changed compared to root node
-          const rootNode = rStore.nodes.find(n => n.id === 'r0');
-          const topicChanged = !rootNode || !rootNode.label.toLowerCase().includes(cleanTopic.toLowerCase());
-          const hasDummyNodes = rStore.nodes.some(n => (!n.id.startsWith('ev_') && n.id !== 'r0') || n.label.includes('Chưa có') || n.label.includes('lao động') || n.label.includes('ILO') || n.label.includes('trợ cấp') || n.label.includes('MIT'));
+            // Check if topic changed compared to root node
+            const rootNode = rStore.nodes.find(n => n.id === 'r0');
+            const topicChanged = !rootNode || !rootNode.label.toLowerCase().includes(cleanTopic.toLowerCase());
+            const hasDummyNodes = rStore.nodes.some(n => (!n.id.startsWith('ev_') && n.id !== 'r0') || n.label.includes('Chưa có') || n.label.includes('lao động') || n.label.includes('ILO') || n.label.includes('trợ cấp') || n.label.includes('MIT'));
 
-          if (topicChanged || hasDummyNodes || rStore.nodes.length <= 1) {
-            rStore.nodes = [{
-              id: 'r0',
-              label: cleanTopic,
-              fullLabel: topicName,
-              type: 'claim',
-              desc: `Chủ đề nghiên cứu trung tâm: ${topicName}`,
-              x: 0,
-              y: 0,
-              vx: 0,
-              vy: 0,
-              seed: true,
-              number: 1
-            }];
-            rStore.links = [];
-            rStore.feed = [];
-          }
-
-          resData.evidenceRecords.forEach((item, idx) => {
-            const id = 'ev_' + (item.id || idx);
-            if (!rStore.nodes.some(n => n.id === id)) {
-              const label = item.title || item.source || item.url || `Bằng chứng #${idx + 1}`;
-              const type = item.type || (item.claim ? 'claim' : (item.issue ? 'issue' : 'source'));
-              const angle = (idx * 2.39996);
-              const dist = 75 + (idx % 3) * 35;
-              rStore.nodes.push({
-                id,
-                label: label.length > 22 ? label.slice(0, 21) + '…' : label,
-                fullLabel: label,
-                type: type,
-                desc: item.snippet || item.claim || item.content || item.summary || 'Dữ liệu được trích xuất từ workspace.',
-                source: item.source || '',
-                url: item.url || '',
-                confidence: item.confidence || '',
-                timestamp: item.timestamp || '',
-                x: Math.cos(angle) * dist,
-                y: Math.sin(angle) * dist,
+            if (topicChanged || hasDummyNodes || rStore.nodes.length <= 1) {
+              rStore.nodes = [{
+                id: 'r0',
+                label: cleanTopic,
+                fullLabel: topicName,
+                type: 'claim',
+                desc: `Chủ đề nghiên cứu trung tâm: ${topicName}`,
+                x: 0,
+                y: 0,
                 vx: 0,
                 vy: 0,
-                seed: false
-              });
-              rStore.links.push({ a: id, b: 'r0' });
+                seed: true,
+                number: 1
+              }];
+              rStore.links = [];
+              rStore.feed = [];
+            }
 
-              if (!rStore.feed.some(f => f.id === id)) {
-                rStore.feed.unshift({
+            resData.evidenceRecords.forEach((item, idx) => {
+              const id = 'ev_' + (item.id || idx);
+              if (!rStore.nodes.some(n => n.id === id)) {
+                const label = item.title || item.source || item.url || `Bằng chứng #${idx + 1}`;
+                const type = item.type || (item.claim ? 'claim' : (item.issue ? 'issue' : 'source'));
+                const angle = (idx * 2.39996);
+                const dist = 75 + (idx % 3) * 35;
+                rStore.nodes.push({
                   id,
-                  title: `${label.length > 24 ? label.slice(0, 23) + '…' : label}`,
-                  sub: `${labels[type] || 'Bằng chứng'} · ${item.source || 'evidence-ledger.jsonl'}`,
-                  time: 'Đã xác minh',
-                  type,
+                  label: label.length > 22 ? label.slice(0, 21) + '…' : label,
+                  fullLabel: label,
+                  type: type,
+                  desc: item.snippet || item.claim || item.content || item.summary || 'Dữ liệu được trích xuất từ workspace.',
+                  source: item.source || '',
                   url: item.url || '',
-                  source: item.source || ''
+                  confidence: item.confidence || '',
+                  timestamp: item.timestamp || '',
+                  x: Math.cos(angle) * dist,
+                  y: Math.sin(angle) * dist,
+                  vx: 0,
+                  vy: 0,
+                  seed: false
                 });
+                rStore.links.push({ a: id, b: 'r0' });
+
+                if (!rStore.feed.some(f => f.id === id)) {
+                  rStore.feed.unshift({
+                    id,
+                    title: `${label.length > 24 ? label.slice(0, 23) + '…' : label}`,
+                    sub: `${labels[type] || 'Bằng chứng'} · ${item.source || 'evidence-ledger.jsonl'}`,
+                    time: 'Đã xác minh',
+                    type,
+                    url: item.url || '',
+                    source: item.source || ''
+                  });
+                }
+              }
+            });
+            rStore.feed = rStore.feed.slice(0, 30);
+
+            if (mode === 'research') {
+              const sessionLabel = $('#session-label');
+              if (sessionLabel) {
+                sessionLabel.textContent = `Workspace Synced · ${cleanTopic}`;
               }
             }
-          });
-          rStore.feed = rStore.feed.slice(0, 30);
-
-          const sessionLabel = $('#session-label');
-          if (sessionLabel) {
-            sessionLabel.textContent = `Workspace Synced · ${cleanTopic}`;
           }
         }
 
@@ -342,11 +347,26 @@
           const rootTopic = resData.timelineData.intervention || 'Mô phỏng nhân quả';
           const cleanAlephTopic = rootTopic.length > 22 ? rootTopic.slice(0, 21) + '…' : rootTopic;
 
+          if (mode === 'aleph') {
+            const qInput = $('#query');
+            if (qInput && document.activeElement !== qInput && (!qInput.value || qInput.value.includes('Chưa có') || qInput.value.trim() === '')) {
+              qInput.value = rootTopic;
+            }
+            const sessionLabel = $('#session-label');
+            if (sessionLabel) {
+              sessionLabel.textContent = `Workspace Synced · ${cleanAlephTopic}`;
+            }
+          }
+
           const hasDummyAleph = aStore.nodes.some(n => (!n.id.startsWith('tl_') && n.id !== 'a0') || n.label.includes('Chưa có'));
-          if (hasDummyAleph || aStore.nodes.length <= 1) {
+          const rootNode = aStore.nodes.find(n => n.id === 'a0');
+          const topicChanged = !rootNode || !rootNode.label.toLowerCase().includes(cleanAlephTopic.toLowerCase());
+
+          if (topicChanged || hasDummyAleph || aStore.nodes.length <= 1) {
             aStore.nodes = [{
               id: 'a0',
               label: cleanAlephTopic,
+              fullLabel: rootTopic,
               type: 'event',
               desc: `Điểm can thiệp ban đầu: ${rootTopic}`,
               x: 0,
@@ -363,34 +383,59 @@
           resData.timelineData.events.forEach((ev, idx) => {
             const id = 'tl_' + (ev.id || idx);
             if (!aStore.nodes.some(n => n.id === id)) {
-              const label = ev.label || ev.title || `Sự kiện #${idx + 1}`;
+              const label = ev.label || ev.title || ev.name || `Sự kiện #${idx + 1}`;
               const type = ev.type || 'event';
               const angle = (idx * 2.39996);
               const dist = 75 + (idx % 3) * 35;
               aStore.nodes.push({
                 id,
                 label: label.length > 22 ? label.slice(0, 21) + '…' : label,
+                fullLabel: ev.name || label,
                 type,
                 desc: ev.desc || ev.description || 'Sự kiện mô phỏng nhân quả từ timeline.json',
+                source: ev.source || 'aleph-skill',
+                url: ev.url || '',
+                confidence: ev.confidence || ev.status || 'Mô phỏng',
+                timestamp: ev.time || ev.timestamp || '',
                 x: Math.cos(angle) * dist,
                 y: Math.sin(angle) * dist,
                 vx: 0,
                 vy: 0,
                 seed: false
               });
-              aStore.links.push({ a: id, b: 'a0' });
 
               if (!aStore.feed.some(f => f.id === id)) {
                 aStore.feed.unshift({
                   id,
                   title: `${label.length > 24 ? label.slice(0, 23) + '…' : label}`,
-                  sub: `${labels[type] || 'Sự kiện'} · timeline.json`,
-                  time: 'Mô phỏng',
-                  type
+                  sub: `${labels[type] || 'Sự kiện'} · ${ev.source || 'timeline.json'}`,
+                  time: ev.time || 'Mô phỏng',
+                  type,
+                  url: ev.url || '',
+                  source: ev.source || ''
                 });
               }
             }
           });
+
+          // Connect links: if timelineData.links is provided, connect defined causal pairs; otherwise link to a0
+          if (Array.isArray(resData.timelineData.links) && resData.timelineData.links.length > 0) {
+            resData.timelineData.links.forEach(l => {
+              const aId = (String(l.source).startsWith('tl_') || l.source === 'a0') ? l.source : 'tl_' + l.source;
+              const bId = (String(l.target).startsWith('tl_') || l.target === 'a0') ? l.target : 'tl_' + l.target;
+              if (!aStore.links.some(existing => (existing.a === aId && existing.b === bId) || (existing.a === bId && existing.b === aId))) {
+                aStore.links.push({ a: aId, b: bId });
+              }
+            });
+          } else {
+            resData.timelineData.events.forEach((ev, idx) => {
+              const id = 'tl_' + (ev.id || idx);
+              if (!aStore.links.some(l => l.a === id && l.b === 'a0')) {
+                aStore.links.push({ a: id, b: 'a0' });
+              }
+            });
+          }
+
           aStore.feed = aStore.feed.slice(0, 30);
         }
 
@@ -418,10 +463,21 @@
     scale = fitScale();
     panX = panY = 0;
 
-    $('#query').value = currentStore().query;
+    const targetStore = currentStore();
+    const activeLabel = targetStore.nodes[0]?.fullLabel || targetStore.nodes[0]?.label || '';
+    if (activeLabel && !activeLabel.includes('Chưa có')) {
+      targetStore.query = activeLabel;
+    }
+    $('#query').value = targetStore.query || '';
     $('#command-heading').textContent = mode === 'research' ? 'D Research' : 'Aleph';
     $('#run-label').textContent = mode === 'research' ? 'D Research' : 'Aleph';
     $('#graph-name').textContent = mode === 'research' ? 'D Research Graph' : 'Aleph Graph';
+
+    const sessionLabel = $('#session-label');
+    if (sessionLabel && activeLabel && !activeLabel.includes('Chưa có')) {
+      const clean = activeLabel.length > 22 ? activeLabel.slice(0, 21) + '…' : activeLabel;
+      sessionLabel.textContent = `Workspace Synced · ${clean}`;
+    }
 
     $$('.mode').forEach((b) => b.classList.toggle('selected', b.dataset.mode === mode));
 
