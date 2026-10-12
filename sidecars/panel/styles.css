@@ -181,14 +181,14 @@ svg.ico {
 }
 
 .demo-tag {
-  font-size: 9px;
-  color: var(--muted);
-  padding: 2.5px 5px;
+  font-size: 8.5px;
+  color: var(--text-muted, #4b5563) !important;
+  padding: 2px 6px;
   background: var(--raised);
-  border: 1px solid var(--soft);
+  border: 1px solid var(--border);
   border-radius: 4px;
   font-weight: 600;
-  letter-spacing: 0.045em;
+  letter-spacing: 0.04em;
 }
 
 .actions {
@@ -1319,6 +1319,7 @@ html[data-theme="light"] .source-link-pill { background: #e8effb !important; col
 html[data-theme="light"] .source-link-pill:hover { background: #1d4ed8 !important; color: #ffffff !important; }
 html[data-theme="light"] .detail-source-link { background: #e8effb !important; color: #1d4ed8 !important; border-color: #bfdbfe !important; }
 html[data-theme="light"] .detail-source-link:hover { background: #1d4ed8 !important; color: #ffffff !important; }
+html[data-theme="light"] .demo-tag { color: #374151 !important; background: #f3f4f6 !important; border-color: #d1d5db !important; }
 
 html[data-theme="dark"] .inspect-tab { color: #9ca3af !important; }
 html[data-theme="dark"] .inspect-tab:hover { color: #f3f4f6 !important; }
@@ -1344,4 +1345,5 @@ html[data-theme="dark"] .source-link-pill { background: #283146 !important; colo
 html[data-theme="dark"] .source-link-pill:hover { background: #3b66a3 !important; color: #ffffff !important; }
 html[data-theme="dark"] .detail-source-link { background: #283146 !important; color: #a8bafa !important; border-color: #3d4a68 !important; }
 html[data-theme="dark"] .detail-source-link:hover { background: #3b66a3 !important; color: #ffffff !important; }
+html[data-theme="dark"] .demo-tag { color: #9ca3af !important; background: #282a2e !important; border-color: #3f4248 !important; }
 
